@@ -1,0 +1,63 @@
+name: Forge
+
+options:
+  bundleIdPrefix: com.forge
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  ForgeCore:
+    path: Packages/ForgeCore
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  Forge:
+    type: application
+    platform: iOS
+    sources:
+      - path: Forge
+    dependencies:
+      - package: ForgeCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.forge.gym
+        CODE_SIGN_ENTITLEMENTS: Forge/Forge.entitlements
+        ENABLE_PREVIEWS: YES
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+
+  ForgeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ForgeTests
+    dependencies:
+      - target: Forge
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.forge.gym.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Forge:
+    build:
+      targets:
+        Forge: all
+        ForgeTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ForgeTests
