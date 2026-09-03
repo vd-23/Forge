@@ -91,9 +91,8 @@ The core loop:
     the same bundle identifier and signing team preserves the SwiftData store.
     **Do not delete the app.** This risk is accepted for v1; export/restore is a
     later milestone.
-- Bundle identifier and App Group id are set at scaffold time (see
-  [Open questions](#10-open-questions)). Working assumption:
-  `com.vaibhavdasari.forge` and `group.com.vaibhavdasari.forge`.
+- Bundle identifier: `com.forge.gym`. App Group: `group.com.forge.gym`. No
+  personal name appears in any identifier, package, or module.
 
 ---
 
@@ -112,7 +111,7 @@ The core loop:
   architectural decision that is expensive to change later, so it is made now.
 - SwiftData `@Model` classes are the source of truth for entities.
 - Scalar preferences (unit, default rest, etc.) live in
-  `UserDefaults(suiteName: "group.com.vaibhavdasari.forge")`, not SwiftData —
+  `UserDefaults(suiteName: "group.com.forge.gym")`, not SwiftData —
   simpler for the widget and for app launch.
 - The Claude API key lives in the **Keychain**, never in SwiftData or
   `UserDefaults`, never hardcoded.
@@ -128,10 +127,10 @@ without needing an Xcode build or a simulator. Given that the app-layer
 build/verify loop runs through the user's Xcode, ForgeCore's test suite is the
 primary automated safety net.
 
-`ForgeCore` contains: the e1RM formula, working-set filtering, volume math
-(including unilateral ×2 and bodyweight = 0), session/weekly/per-body-part
+`ForgeCore` eventually contains: the e1RM formula, working-set filtering, volume
+math (including unilateral ×2 and bodyweight = 0), session/weekly/per-body-part
 aggregation, PR detection, streak and heatmap bucketing, and the chat-context
-summariser.
+summariser. Each function lands in the milestone that first renders it — see §6.
 
 ### Widget data
 
@@ -258,7 +257,7 @@ RPE is stored as `Double?` in the range 6.0–10.0 in 0.5 steps (nil = not recor
 | `notes` | `String?` | session-level only |
 | `sourceRoutine` | `Routine?` | nullable (routine may be deleted later) |
 | `sourceRoutineName` | `String` | snapshot at start, always present |
-| `sets` | `[ExerciseSet]` | |
+| `exercises` | `[WorkoutExercise]` | ordered by `WorkoutExercise.order` |
 
 Derived (not stored): `isActive` (`endedAt == nil`), `duration`,
 `totalVolumeKg`, `prCount`.
@@ -270,14 +269,31 @@ blocked (offer to resume or discard the existing one).
 than ~6 hours ago, prompt: *Finish* (stamp `endedAt`) or *Discard*. (A fuller
 auto-finish-at-midnight behaviour can come later; this keeps M1 simple.)
 
+### `WorkoutExercise` (`@Model`)
+
+One exercise slot within a session — created when a workout starts (copied from
+the routine) or added mid-workout. Sits between `WorkoutSession` and
+`ExerciseSet` so a planned exercise exists before any set is logged, per-session
+targets are snapshotted, and a mid-workout crash loses nothing.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `UUID` | |
+| `session` | `WorkoutSession?` | inverse relationship |
+| `exercise` | `Exercise?` | one-way reference; archived, not deleted, while referenced |
+| `exerciseID` | `UUID` | denormalised `exercise.id` for predicate-friendly history queries |
+| `order` | `Int` | position within the session |
+| `targetSets` / `targetRepMin` / `targetRepMax` | `Int?` | snapshot of the routine item's targets |
+| `restSeconds` | `Int?` | resolved at start: routine-item override → exercise default |
+| `sets` | `[ExerciseSet]` | ordered by `ExerciseSet.order` |
+
 ### `ExerciseSet` (`@Model`)
 
 | Field | Type | Notes |
 |---|---|---|
 | `id` | `UUID` | |
-| `session` | `WorkoutSession` | inverse relationship |
-| `exercise` | `Exercise` | |
-| `order` | `Int` | position within the session |
+| `workoutExercise` | `WorkoutExercise?` | inverse relationship |
+| `order` | `Int` | position within the workout-exercise |
 | `weightKg` | `Double?` | working weight; nil for pure bodyweight |
 | `addedWeightKg` | `Double?` | added load for bodyweight exercises (belt, vest); nil/0 otherwise |
 | `reps` | `Int` | for unilateral, this is reps *per side* |
@@ -289,14 +305,15 @@ auto-finish-at-midnight behaviour can come later; this keeps M1 simple.)
 ### Deletion & archival rules
 
 - **Exercises and routines are archived, not deleted**, when referenced by any
-  historical session. A hard delete is only offered when there is no history.
+  historical session or routine. A hard delete is only offered when there is no
+  reference.
 - Deleting a routine never touches past sessions — `sourceRoutineName` preserves
   the label.
-- Deleting a session deletes its sets (cascade).
+- Deleting a session cascades to its `WorkoutExercise`s and their `ExerciseSet`s.
 
 ### Seed data
 
-On first launch, the store is seeded with ~35 common exercises
+On first launch, the store is seeded with ~40 common exercises
 ([Appendix A](#appendix-a--seed-exercises)), all editable and deletable. No seed
 routines — the user builds those.
 
@@ -304,7 +321,12 @@ routines — the user builds those.
 
 ## 6. ForgeCore computations
 
-All pure functions over value structs. Representative signatures:
+All pure functions over value structs. Representative signatures below;
+**M1 implements only** `estimatedOneRepMax`, `workingSets`, `setVolumeKg`,
+`sessionVolumeKg`, `sessionBestE1RM`, `personalRecords`, and `newPersonalRecords`.
+The series builders, `currentStreakDays` / `longestStreakDays` / `heatmap`, and
+`chatContext` arrive with the milestone that renders them (M2 for streak/heatmap,
+M5 for chat).
 
 ```
 // Epley
@@ -353,8 +375,10 @@ resets once a full day passes with no finished session.
 
 ## 7. Screens & UX
 
-Five tabs: **Workout · Dashboard · History · Progress · Settings**. Chat is added
-as a sixth tab in M5. Default tab: Workout.
+The full app has five tabs: **Workout · Dashboard · History · Progress ·
+Settings**, with Chat added as a sixth in M5. **M1 ships three** — Workout,
+History, Settings — and M2 introduces the Dashboard and Progress tabs (no
+placeholder tabs before then). Default tab: Workout.
 
 ### 7.1 Workout tab — routine list (M1)
 
@@ -525,16 +549,14 @@ to any app-layer logic that can be isolated from SwiftUI/SwiftData.
 
 Resolve at or before the relevant milestone; none block M1 start.
 
-1. **Bundle identifier & App Group id** — confirm `com.vaibhavdasari.forge` /
-   `group.com.vaibhavdasari.forge` at scaffold time.
-2. **Seed exercise list** — [Appendix A](#appendix-a--seed-exercises) is a first
+1. **Seed exercise list** — [Appendix A](#appendix-a--seed-exercises) is a first
    draft; refine during M1.4.
-3. **Heatmap intensity metric** — working-set count vs total volume. Decide in M2.
-4. **Stale-session handling** — M1 uses a launch-time prompt at ~6h; revisit
+2. **Heatmap intensity metric** — working-set count vs total volume. Decide in M2.
+3. **Stale-session handling** — M1 uses a launch-time prompt at ~6h; revisit
    whether a true midnight auto-finish is worth it later.
-5. **Chat context budget** — how many sessions / how much detail fits a
+4. **Chat context budget** — how many sessions / how much detail fits a
    reasonable token budget. Tune in M5.
-6. **Widget planned-exercises view** — dropped for now (no schedule model). Could
+5. **Widget planned-exercises view** — dropped for now (no schedule model). Could
    later surface "most recent routine" as a suggestion.
 
 ---
