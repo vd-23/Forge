@@ -10,7 +10,6 @@ struct ExerciseLibraryView: View {
 
     @State private var scope: ArchiveScope = .active
     @State private var search = ""
-    @State private var editing: Exercise?
     @State private var creating = false
     @State private var deleteError: String?
 
@@ -36,8 +35,7 @@ struct ExerciseLibraryView: View {
                 ForEach(grouped, id: \.bodyPart) { group in
                     Section(group.bodyPart.displayName) {
                         ForEach(group.items) { exercise in
-                            Button { editing = exercise } label: { row(exercise) }
-                                .tint(.primary)
+                            NavigationLink(value: exercise) { row(exercise) }
                                 .swipeActions(edge: .trailing) { actions(for: exercise) }
                         }
                     }
@@ -56,8 +54,8 @@ struct ExerciseLibraryView: View {
                     Button("Add", systemImage: "plus") { creating = true }
                 }
             }
-            .sheet(item: $editing) { exercise in
-                NavigationStack { ExerciseEditorView(exercise: exercise) }
+            .navigationDestination(for: Exercise.self) { exercise in
+                ExerciseDetailView(exercise: exercise)
             }
             .sheet(isPresented: $creating) {
                 NavigationStack { ExerciseEditorView(exercise: nil) }
