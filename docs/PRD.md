@@ -310,6 +310,12 @@ targets are snapshotted, and a mid-workout crash loses nothing.
 - Deleting a routine never touches past sessions — `sourceRoutineName` preserves
   the label.
 - Deleting a session cascades to its `WorkoutExercise`s and their `ExerciseSet`s.
+- **Finishing prunes what was never done.** A set that was never ticked complete
+  was never performed — it already counted for nothing in volume or PRs, so it
+  is deleted rather than stored. An exercise left with no sets goes with it, and
+  a session with nothing logged anywhere is discarded instead of being written
+  to history. Bodyweight sets count as logged: they are tracked by reps, and
+  contributing `0` volume is by design, not a sign of an empty set.
 
 ### Seed data
 
@@ -432,6 +438,8 @@ Presented full-screen over the Workout tab.
 
 - Sessions grouped by month, newest first. Row: date, routine name, duration,
   total volume, PR badge count.
+- Sortable by date (either direction), total volume, or duration, and filterable
+  to a single routine. Month headings apply only to the date orders.
 - Tap → **Session Detail**: every exercise with its sets (warmups marked), RPE if
   present, session notes.
 - Editing sets from History is **M2**.
