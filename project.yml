@@ -1,5 +1,10 @@
 name: Forge
 
+fileGroups:
+  - docs
+  - project.yml
+  - Brewfile
+
 options:
   bundleIdPrefix: com.forge
   deploymentTarget:
