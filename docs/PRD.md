@@ -85,14 +85,18 @@ The core loop:
 - **Free personal Apple ID signing.** Consequences:
   - Signing certificates expire every 7 days. The app stops launching and must be
     re-run from Xcode (`⌘R`). This is expected and acceptable.
-  - App Group entitlements work on the free tier (confirmed acceptable in the
-    brief) — needed for the widget.
+  - **App Groups do NOT work on the free tier.** This was assumed at M1 and is
+    wrong: the entitlement cannot be provisioned by a personal team, and code
+    signing fails outright rather than degrading. Corrected during M2 when the
+    app was first installed on a real device — the store moved to the app's own
+    Application Support directory and the entitlement was removed. This blocks
+    the M3 widget (see M3).
   - **There is no data export in v1.** Reinstalling *over* the existing app with
     the same bundle identifier and signing team preserves the SwiftData store.
     **Do not delete the app.** This risk is accepted for v1; export/restore is a
     later milestone.
-- Bundle identifier: `com.forge.gym`. App Group: `group.com.forge.gym`. No
-  personal name appears in any identifier, package, or module.
+- Bundle identifier: `com.forge.gym`. No personal name appears in any
+  identifier, package, or module.
 
 ---
 
@@ -102,17 +106,18 @@ The core loop:
 
 - **Forge** — the app target (SwiftUI lifecycle).
 - **ForgeWidgets** — a Widget Extension target (added in M3).
-- Both targets carry the **App Group** entitlement and share one SwiftData store.
+- The app carries no entitlements: everything it needs is available to a free
+  personal team.
 
 ### Persistence
 
-- A single SwiftData `ModelContainer`, created with its store URL inside the
-  **App Group container** from day one (not retrofitted in M3). This is the one
-  architectural decision that is expensive to change later, so it is made now.
+- A single SwiftData `ModelContainer`, with its store in the app's own
+  **Application Support** directory. It was originally placed in an App Group
+  container so a widget could share it; that had to be undone in M2 when the
+  free-tier limitation surfaced.
 - SwiftData `@Model` classes are the source of truth for entities.
-- Scalar preferences (unit, default rest, etc.) live in
-  `UserDefaults(suiteName: "group.com.forge.gym")`, not SwiftData —
-  simpler for the widget and for app launch.
+- Scalar preferences (unit, default rest, etc.) live in standard `UserDefaults`,
+  not SwiftData — simpler at app launch.
 - The Claude API key lives in the **Keychain**, never in SwiftData or
   `UserDefaults`, never hardcoded.
 
@@ -523,7 +528,11 @@ taught us.
 - Dashboard (heatmap, streak, weekly stats, recent PRs).
 - Edit past sets from History.
 
-### M3 — Widget
+### M3 — Widget — **blocked on a paid account**
+
+A widget cannot read the app's data without an App Group, and an App Group
+cannot be provisioned by a free personal team. M3 needs either a paid Apple
+Developer Program membership or to be dropped. Decide before starting it.
 
 - `ForgeWidgets` extension target, App Group wiring.
 - `WidgetSnapshot` writer on Finish.
