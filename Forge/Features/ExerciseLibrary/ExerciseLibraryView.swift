@@ -3,17 +3,21 @@ import SwiftData
 
 struct ExerciseLibraryView: View {
     @Environment(\.modelContext) private var context
-    @Query(filter: #Predicate<Exercise> { !$0.isArchived }, sort: \Exercise.name)
-    private var exercises: [Exercise]
 
+    /// Both scopes come from one query and are split in Swift: `@Query`'s
+    /// predicate is fixed at declaration, and a personal library is small.
+    @Query(sort: \Exercise.name) private var allExercises: [Exercise]
+
+    @State private var scope: ArchiveScope = .active
     @State private var search = ""
     @State private var editing: Exercise?
     @State private var creating = false
     @State private var deleteError: String?
 
     private var filtered: [Exercise] {
-        guard !search.isEmpty else { return exercises }
-        return exercises.filter { $0.name.localizedCaseInsensitiveContains(search) }
+        let inScope = allExercises.filter { $0.isArchived == scope.isArchived }
+        guard !search.isEmpty else { return inScope }
+        return inScope.filter { $0.name.localizedCaseInsensitiveContains(search) }
     }
 
     private var grouped: [(bodyPart: BodyPart, items: [Exercise])] {
@@ -22,61 +26,54 @@ struct ExerciseLibraryView: View {
             .sorted { $0.bodyPart.displayName < $1.bodyPart.displayName }
     }
 
+    private var hasArchived: Bool {
+        allExercises.contains(where: \.isArchived)
+    }
+
     var body: some View {
-        List {
-            ForEach(grouped, id: \.bodyPart) { group in
-                Section(group.bodyPart.displayName) {
-                    ForEach(group.items) { exercise in
-                        Button { editing = exercise } label: { row(exercise) }
-                            .tint(.primary)
-                            .swipeActions(edge: .trailing) {
-                                Button("Delete", systemImage: "trash", role: .destructive) {
-                                    delete(exercise)
-                                }
-                                Button("Archive", systemImage: "archivebox") {
-                                    exercise.isArchived = true
-                                    try? context.save()
-                                }
-                                .tint(.orange)
-                            }
+        NavigationStack {
+            List {
+                ForEach(grouped, id: \.bodyPart) { group in
+                    Section(group.bodyPart.displayName) {
+                        ForEach(group.items) { exercise in
+                            Button { editing = exercise } label: { row(exercise) }
+                                .tint(.primary)
+                                .swipeActions(edge: .trailing) { actions(for: exercise) }
+                        }
                     }
                 }
             }
-        }
-        .navigationTitle("Exercises")
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $search)
-        .overlay {
-            if filtered.isEmpty {
-                ContentUnavailableView(
-                    search.isEmpty ? "No exercises" : "No matches",
-                    systemImage: "dumbbell",
-                    description: Text(search.isEmpty
-                                      ? "Add your first exercise with the + button."
-                                      : "Nothing matches “\(search)”.")
-                )
+            .navigationTitle("Exercises")
+            .searchable(text: $search)
+            .overlay {
+                if filtered.isEmpty { emptyState }
             }
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Add", systemImage: "plus") { creating = true }
+            .toolbar {
+                if hasArchived {
+                    ToolbarItem(placement: .topBarLeading) { scopeMenu }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add", systemImage: "plus") { creating = true }
+                }
             }
-        }
-        .sheet(item: $editing) { exercise in
-            NavigationStack { ExerciseEditorView(exercise: exercise) }
-        }
-        .sheet(isPresented: $creating) {
-            NavigationStack { ExerciseEditorView(exercise: nil) }
-        }
-        .alert("Can't delete", isPresented: Binding(
-            get: { deleteError != nil },
-            set: { if !$0 { deleteError = nil } }
-        )) {
-            Button("OK") { deleteError = nil }
-        } message: {
-            Text(deleteError ?? "")
+            .sheet(item: $editing) { exercise in
+                NavigationStack { ExerciseEditorView(exercise: exercise) }
+            }
+            .sheet(isPresented: $creating) {
+                NavigationStack { ExerciseEditorView(exercise: nil) }
+            }
+            .alert("Can't delete", isPresented: Binding(
+                get: { deleteError != nil },
+                set: { if !$0 { deleteError = nil } }
+            )) {
+                Button("OK") { deleteError = nil }
+            } message: {
+                Text(deleteError ?? "")
+            }
         }
     }
+
+    // MARK: Rows
 
     private func row(_ exercise: Exercise) -> some View {
         HStack {
@@ -84,6 +81,62 @@ struct ExerciseLibraryView: View {
             Spacer()
             if exercise.isBodyweight { FlagTag("BW") }
             if exercise.isUnilateral { FlagTag("×2") }
+        }
+        .opacity(scope.isArchived ? 0.6 : 1)
+    }
+
+    @ViewBuilder
+    private func actions(for exercise: Exercise) -> some View {
+        Button("Delete", systemImage: "trash", role: .destructive) {
+            delete(exercise)
+        }
+        if scope.isArchived {
+            Button("Unarchive", systemImage: "arrow.uturn.backward") {
+                exercise.isArchived = false
+                try? context.save()
+            }
+            .tint(.green)
+        } else {
+            Button("Archive", systemImage: "archivebox") {
+                exercise.isArchived = true
+                try? context.save()
+            }
+            .tint(.orange)
+        }
+    }
+
+    // MARK: Chrome
+
+    private var scopeMenu: some View {
+        Menu {
+            Picker("Show", selection: $scope) {
+                ForEach(ArchiveScope.allCases) { Text($0.displayName).tag($0) }
+            }
+        } label: {
+            Label("Show", systemImage: scope.isArchived ? "archivebox.fill" : "archivebox")
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if !search.isEmpty {
+            ContentUnavailableView(
+                "No matches",
+                systemImage: "dumbbell",
+                description: Text("Nothing matches “\(search)”.")
+            )
+        } else if scope.isArchived {
+            ContentUnavailableView {
+                Label("No archived exercises", systemImage: "archivebox")
+            } actions: {
+                Button("Show active") { scope = .active }
+            }
+        } else {
+            ContentUnavailableView(
+                "No exercises",
+                systemImage: "dumbbell",
+                description: Text("Add your first exercise with the + button.")
+            )
         }
     }
 
@@ -113,6 +166,6 @@ private struct FlagTag: View {
 #Preview {
     let container = PersistenceController.makeInMemoryContainer()
     PersistenceController.seedIfEmpty(container.mainContext)
-    return NavigationStack { ExerciseLibraryView() }
+    return ExerciseLibraryView()
         .modelContainer(container)
 }

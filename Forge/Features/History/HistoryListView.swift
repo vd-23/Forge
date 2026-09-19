@@ -3,6 +3,8 @@ import SwiftData
 import ForgeCore
 
 struct HistoryListView: View {
+    @Environment(\.modelContext) private var context
+
     @Query(filter: #Predicate<WorkoutSession> { $0.endedAt != nil })
     private var sessions: [WorkoutSession]
 
@@ -11,6 +13,7 @@ struct HistoryListView: View {
 
     @State private var sort: HistorySort = .newest
     @State private var routineFilter: String?
+    @State private var pendingDeletion: WorkoutSession?
 
     private var visible: [WorkoutSession] {
         HistoryFiltering.apply(to: sessions, sort: sort, routine: routineFilter)
@@ -44,7 +47,24 @@ struct HistoryListView: View {
             .navigationDestination(for: WorkoutSession.self) { session in
                 SessionDetailView(session: session)
             }
+            .alert("Delete this workout?", isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ), presenting: pendingDeletion) { session in
+                Button("Delete", role: .destructive) { delete(session) }
+                Button("Cancel", role: .cancel) { pendingDeletion = nil }
+            } message: { session in
+                Text("\"\(session.sourceRoutineName)\" and every set logged in it will be removed. This can't be undone.")
+            }
         }
+    }
+
+    /// Nothing else refers to a session, so unlike exercises and routines it has
+    /// no archived state — deleting cascades to its exercises and sets.
+    private func delete(_ session: WorkoutSession) {
+        pendingDeletion = nil
+        context.delete(session)
+        try? context.save()
     }
 
     private var list: some View {
@@ -63,6 +83,11 @@ struct HistoryListView: View {
         ForEach(sessions) { session in
             NavigationLink(value: session) {
                 HistoryRow(session: session, unit: unit)
+            }
+            .swipeActions(edge: .trailing) {
+                Button("Delete", systemImage: "trash", role: .destructive) {
+                    pendingDeletion = session
+                }
             }
         }
     }

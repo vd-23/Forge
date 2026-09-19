@@ -381,10 +381,13 @@ resets once a full day passes with no finished session.
 
 ## 7. Screens & UX
 
-The full app has five tabs: **Workout · Dashboard · History · Progress ·
-Settings**, with Chat added as a sixth in M5. **M1 ships three** — Workout,
-History, Settings — and M2 introduces the Dashboard and Progress tabs (no
-placeholder tabs before then). Default tab: Workout.
+The full app has five tabs: **Home · Workout · Exercises · History · Settings**,
+with Chat added as a sixth in M5. **M1 ships three** — Workout, History,
+Settings — and M2 adds Home and Exercises. Default tab: Workout.
+
+Per-exercise progress charts live inside the Exercises tab rather than a tab of
+their own: an exercise is the natural owner of its own trend line, and it keeps
+the dock at five.
 
 ### 7.1 Workout tab — routine list (M1)
 
@@ -442,11 +445,15 @@ Presented full-screen over the Workout tab.
   to a single routine. Month headings apply only to the date orders.
 - Tap → **Session Detail**: every exercise with its sets (warmups marked), RPE if
   present, session notes.
+- Swipe a row to delete a workout, behind a confirmation. Nothing else refers to
+  a session, so unlike exercises and routines it has no archived state.
 - Editing sets from History is **M2**.
 
-### 7.5 Progress tab (M2)
+### 7.5 Exercises tab — library and per-exercise progress (M2)
 
-- Exercise picker (searchable).
+- The full library: create, edit, archive/unarchive, delete (when unused),
+  grouped by body part and searchable. Moved here from Settings.
+- Tap an exercise → its detail: flags, body part, lifetime PRs, and its charts.
 - For a weighted exercise: an **estimated 1RM** line chart (best working set per
   session) with a **Volume** toggle (per-session working volume), rep-PR markers,
   and a date-range control (8w / 6m / 1y / all).
@@ -454,11 +461,12 @@ Presented full-screen over the Workout tab.
   e1RM/volume.
 - Swift Charts; solid background.
 
-### 7.6 Dashboard tab (M2)
+### 7.6 Home tab (M2)
 
 - **Heatmap:** ~16–20 weeks, horizontally scrollable, GitHub-style. Intensity by
-  working-set count (or volume — [open question](#10-open-questions)); rest days
-  render in a flat neutral colour. Tap a day → that session.
+  **working-set count** — volume would render every bodyweight day as the
+  lightest shade. Rest days render in a flat neutral colour. Tap a day → that
+  session.
 - **Current streak** and **longest streak** (consecutive days).
 - **This week:** workout count + total volume.
 - **30-day volume** trend line.
@@ -468,8 +476,6 @@ Presented full-screen over the Workout tab.
 
 - **Unit** — kg / lb (display only; storage is always kg).
 - **Default rest** — global fallback, seconds.
-- **Manage exercises** — the full library: create, edit, archive/unarchive,
-  delete (when unused).
 - **Claude API key** — entered here, stored in Keychain (M5).
 - **About** — version, and the "don't delete the app / reinstall via ⌘R" note.
 
@@ -559,7 +565,8 @@ Resolve at or before the relevant milestone; none block M1 start.
 
 1. **Seed exercise list** — [Appendix A](#appendix-a--seed-exercises) is a first
    draft; refine during M1.4.
-2. **Heatmap intensity metric** — working-set count vs total volume. Decide in M2.
+2. ~~**Heatmap intensity metric**~~ — resolved in M2: working-set count, so a
+   bodyweight day registers as honestly as a heavy squat day.
 3. **Stale-session handling** — M1 uses a launch-time prompt at ~6h; revisit
    whether a true midnight auto-finish is worth it later.
 4. **Chat context budget** — how many sessions / how much detail fits a

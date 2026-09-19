@@ -8,8 +8,12 @@ struct RootView: View {
 
     var body: some View {
         TabView {
+            HomeView()
+                .tabItem { Label("Home", systemImage: "house") }
             RoutineListView()
                 .tabItem { Label("Workout", systemImage: "figure.strengthtraining.traditional") }
+            ExerciseLibraryView()
+                .tabItem { Label("Exercises", systemImage: "dumbbell") }
             HistoryListView()
                 .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
             SettingsView()
