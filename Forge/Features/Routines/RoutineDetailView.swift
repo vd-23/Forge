@@ -6,8 +6,12 @@ struct RoutineDetailView: View {
 
     let routine: Routine
     var autoStart: Bool = false
+    /// The whole tab's navigation stack. Pushing the workout through here rather
+    /// than a local `navigationDestination(item:)` keeps it on screen: saving a
+    /// set refreshes the routine list's `@Query`, which tears down and rebuilds
+    /// any destination this view declares itself.
+    @Binding var path: [RoutineDestination]
 
-    @State private var startedSession: WorkoutSession?
     @State private var showActiveConflict = false
     /// `.task` re-runs whenever this view reappears — including when the active
     /// workout is finished and pops back onto it. Without this guard, finishing
@@ -64,11 +68,12 @@ struct RoutineDetailView: View {
                 .background(.bar)
                 .disabled(routine.orderedItems.isEmpty)
         }
-        .navigationDestination(item: $startedSession) { session in
-            ActiveWorkoutView(session: session, controller: controller)
-        }
         .alert("A workout is already in progress", isPresented: $showActiveConflict) {
-            Button("Resume it") { startedSession = controller.activeSession }
+            Button("Resume it") {
+                if let active = controller.activeSession {
+                    path.append(.activeWorkout(active))
+                }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Finish or discard it before starting another.")
@@ -85,6 +90,7 @@ struct RoutineDetailView: View {
             showActiveConflict = true
             return
         }
-        startedSession = try? controller.start(from: routine)
+        guard let session = try? controller.start(from: routine) else { return }
+        path.append(.activeWorkout(session))
     }
 }

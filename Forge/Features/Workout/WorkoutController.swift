@@ -1,4 +1,5 @@
 import Foundation
+import ForgeCore
 import Observation
 import SwiftData
 
@@ -54,12 +55,19 @@ final class WorkoutController {
         return session
     }
 
-    func finish(_ session: WorkoutSession) {
+    /// Stamps the session finished and returns what it amounted to.
+    ///
+    /// History is read *before* the end timestamp is written, so the session
+    /// being finished cannot count as its own previous best.
+    @discardableResult
+    func finish(_ session: WorkoutSession) -> WorkoutSummary {
+        let history = finishedSessionInputs(excluding: session.id)
         let finishedAt = Date.now
         session.endedAt = finishedAt
         session.sourceRoutine?.lastPerformedAt = finishedAt
         save()
         if activeSession?.id == session.id { activeSession = nil }
+        return WorkoutSummaryBuilder.build(session: session, finishedAt: finishedAt, history: history)
     }
 
     func discard(_ session: WorkoutSession) {
@@ -123,6 +131,12 @@ final class WorkoutController {
         } catch {
             assertionFailure("WorkoutController save failed: \(error)")
         }
+    }
+
+    private func finishedSessionInputs(excluding sessionID: UUID) -> [SessionInput] {
+        let descriptor = FetchDescriptor<WorkoutSession>(predicate: #Predicate { $0.endedAt != nil })
+        let sessions = (try? context.fetch(descriptor)) ?? []
+        return sessions.filter { $0.id != sessionID }.map(\.coreInput)
     }
 
     private static func fetchActiveSession(in context: ModelContext) -> WorkoutSession? {

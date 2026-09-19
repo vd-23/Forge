@@ -30,4 +30,8 @@ final class ExerciseSet {
         self.isComplete = false
         self.completedAt = nil
     }
+
+    /// Mirrors ForgeCore's `workingSets` rule for callers that hold model
+    /// objects rather than `SetInput` values.
+    var isWorkingSet: Bool { isComplete && !isWarmup }
 }

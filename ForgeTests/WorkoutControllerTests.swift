@@ -104,12 +104,32 @@ struct WorkoutControllerTests {
         let (routine, _, _) = makeRoutine()
         let controller = WorkoutController(context: ctx)
         let session = try controller.start(from: routine)
+        let set = controller.addSet(to: session.orderedExercises[0], weightKg: 100, addedWeightKg: nil,
+                                    reps: 5, rpe: nil, isWarmup: false)
+        controller.toggleComplete(set)
 
-        controller.finish(session)
+        let summary = controller.finish(session)
 
         #expect(session.endedAt != nil)
         #expect(controller.hasActiveSession == false)
         #expect(routine.lastPerformedAt != nil)
+        #expect(summary.workingSetCount == 1)
+        #expect(summary.totalVolumeKg == 500)
+    }
+
+    @Test func finishDoesNotTreatTheSessionAsItsOwnHistory() throws {
+        let (routine, _, _) = makeRoutine()
+        let controller = WorkoutController(context: ctx)
+        let session = try controller.start(from: routine)
+        let set = controller.addSet(to: session.orderedExercises[0], weightKg: 100, addedWeightKg: nil,
+                                    reps: 5, rpe: nil, isWarmup: false)
+        controller.toggleComplete(set)
+
+        let summary = controller.finish(session)
+
+        // A first-ever squat is a PR in all three categories; if the session
+        // leaked into its own history, none of them would register.
+        #expect(summary.prHits.count == 3)
     }
 
     @Test func discardDeletesTheSession() throws {

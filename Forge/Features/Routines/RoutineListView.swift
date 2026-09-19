@@ -3,6 +3,7 @@ import SwiftData
 
 struct RoutineListView: View {
     @Environment(\.modelContext) private var context
+    @Environment(WorkoutController.self) private var controller
     @Query(filter: #Predicate<Routine> { !$0.isArchived }, sort: \Routine.name)
     private var routines: [Routine]
 
@@ -59,7 +60,9 @@ struct RoutineListView: View {
             .navigationDestination(for: RoutineDestination.self) { destination in
                 switch destination {
                 case let .detail(routine, autoStart):
-                    RoutineDetailView(routine: routine, autoStart: autoStart)
+                    RoutineDetailView(routine: routine, autoStart: autoStart, path: $path)
+                case let .activeWorkout(session):
+                    ActiveWorkoutView(session: session, controller: controller)
                 }
             }
             .sheet(item: $editingRoutine) { routine in
@@ -81,13 +84,17 @@ struct RoutineListView: View {
     }
 }
 
-/// Typed navigation targets for the Workout tab.
+/// Typed navigation targets for the Workout tab. Every push in this tab goes
+/// through here so the stack is declared in exactly one place.
 enum RoutineDestination: Hashable {
     case detail(Routine, autoStart: Bool)
+    case activeWorkout(WorkoutSession)
 }
 
 #Preview {
     let container = PersistenceController.makeInMemoryContainer()
     PersistenceController.seedIfEmpty(container.mainContext)
-    return RoutineListView().modelContainer(container)
+    return RoutineListView()
+        .modelContainer(container)
+        .environment(WorkoutController(context: container.mainContext))
 }

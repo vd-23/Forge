@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @State private var weightUnit = Preferences.weightUnit
-    @State private var restSeconds = Preferences.defaultRestSeconds
+    @AppStorage(Preferences.Key.weightUnit, store: Preferences.defaults)
+    private var weightUnit: WeightUnit = .kg
+    @AppStorage(Preferences.Key.defaultRestSeconds, store: Preferences.defaults)
+    private var restSeconds: Int = Preferences.fallbackRestSeconds
 
     var body: some View {
         NavigationStack {
@@ -26,8 +28,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .onChange(of: weightUnit) { Preferences.weightUnit = weightUnit }
-            .onChange(of: restSeconds) { Preferences.defaultRestSeconds = restSeconds }
         }
     }
 }
