@@ -3,24 +3,28 @@ import SwiftData
 
 /// Builds the app's SwiftData containers.
 ///
-/// The production store lives in the App Group container so the widget
-/// extension (M3) can open the same database without a migration.
+/// The store lives in the app's own Application Support directory. It was in an
+/// App Group so an M3 widget could read the same database, but App Groups
+/// require a paid Apple Developer Program membership — with a free personal
+/// team the entitlement cannot be provisioned and code signing fails outright,
+/// so the app never reaches the device. Sharing with a widget will need either
+/// a paid account or an exported snapshot.
 enum PersistenceController {
-    static let appGroupID = "group.com.forge.gym"
+    static let storeName = "Forge.store"
 
-    /// The shared, on-disk container. A failure here means the schema itself
-    /// is unopenable — there is no safe way to continue, so we trap.
+    /// The on-disk location of the store, creating the directory if needed.
+    static func storeURL() throws -> URL {
+        let directory = URL.applicationSupportDirectory
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appending(path: storeName)
+    }
+
+    /// The main on-disk container. A failure here means the schema itself is
+    /// unopenable — there is no safe way to continue, so we trap.
     static func makeSharedContainer() -> ModelContainer {
         let schema = Schema(forgeSchemaModels)
-        guard let groupURL = FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: appGroupID) else {
-            fatalError("App Group \(appGroupID) is not provisioned. Check the entitlement and signing.")
-        }
-        let configuration = ModelConfiguration(
-            schema: schema,
-            url: groupURL.appending(path: "Forge.store")
-        )
         do {
+            let configuration = try ModelConfiguration(schema: schema, url: storeURL())
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             fatalError("Could not open the Forge store: \(error)")

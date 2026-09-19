@@ -2,7 +2,9 @@ import SwiftUI
 
 struct RoutineRow: View {
     let routine: Routine
-    let onStart: () -> Void
+    var isArchived: Bool = false
+    /// `nil` for an archived routine — it has to be restored before it can run.
+    let onStart: (() -> Void)?
 
     var body: some View {
         HStack {
@@ -20,10 +22,20 @@ struct RoutineRow: View {
 
             Spacer()
 
-            Button("Start", action: onStart)
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .controlSize(.small)
+            if let onStart {
+                Button("Start", action: onStart)
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+            } else {
+                Text("Archived")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.quaternary, in: .capsule)
+            }
         }
+        .opacity(isArchived ? 0.6 : 1)
     }
 }

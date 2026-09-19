@@ -85,14 +85,18 @@ The core loop:
 - **Free personal Apple ID signing.** Consequences:
   - Signing certificates expire every 7 days. The app stops launching and must be
     re-run from Xcode (`⌘R`). This is expected and acceptable.
-  - App Group entitlements work on the free tier (confirmed acceptable in the
-    brief) — needed for the widget.
+  - **App Groups do NOT work on the free tier.** This was assumed at M1 and is
+    wrong: the entitlement cannot be provisioned by a personal team, and code
+    signing fails outright rather than degrading. Corrected during M2 when the
+    app was first installed on a real device — the store moved to the app's own
+    Application Support directory and the entitlement was removed. This blocks
+    the M3 widget (see M3).
   - **There is no data export in v1.** Reinstalling *over* the existing app with
     the same bundle identifier and signing team preserves the SwiftData store.
     **Do not delete the app.** This risk is accepted for v1; export/restore is a
     later milestone.
-- Bundle identifier: `com.forge.gym`. App Group: `group.com.forge.gym`. No
-  personal name appears in any identifier, package, or module.
+- Bundle identifier: `com.forge.gym`. No personal name appears in any
+  identifier, package, or module.
 
 ---
 
@@ -102,17 +106,18 @@ The core loop:
 
 - **Forge** — the app target (SwiftUI lifecycle).
 - **ForgeWidgets** — a Widget Extension target (added in M3).
-- Both targets carry the **App Group** entitlement and share one SwiftData store.
+- The app carries no entitlements: everything it needs is available to a free
+  personal team.
 
 ### Persistence
 
-- A single SwiftData `ModelContainer`, created with its store URL inside the
-  **App Group container** from day one (not retrofitted in M3). This is the one
-  architectural decision that is expensive to change later, so it is made now.
+- A single SwiftData `ModelContainer`, with its store in the app's own
+  **Application Support** directory. It was originally placed in an App Group
+  container so a widget could share it; that had to be undone in M2 when the
+  free-tier limitation surfaced.
 - SwiftData `@Model` classes are the source of truth for entities.
-- Scalar preferences (unit, default rest, etc.) live in
-  `UserDefaults(suiteName: "group.com.forge.gym")`, not SwiftData —
-  simpler for the widget and for app launch.
+- Scalar preferences (unit, default rest, etc.) live in standard `UserDefaults`,
+  not SwiftData — simpler at app launch.
 - The Claude API key lives in the **Keychain**, never in SwiftData or
   `UserDefaults`, never hardcoded.
 
@@ -381,10 +386,13 @@ resets once a full day passes with no finished session.
 
 ## 7. Screens & UX
 
-The full app has five tabs: **Workout · Dashboard · History · Progress ·
-Settings**, with Chat added as a sixth in M5. **M1 ships three** — Workout,
-History, Settings — and M2 introduces the Dashboard and Progress tabs (no
-placeholder tabs before then). Default tab: Workout.
+The full app has five tabs: **Home · Workout · Exercises · History · Settings**,
+with Chat added as a sixth in M5. **M1 ships three** — Workout, History,
+Settings — and M2 adds Home and Exercises. Default tab: Workout.
+
+Per-exercise progress charts live inside the Exercises tab rather than a tab of
+their own: an exercise is the natural owner of its own trend line, and it keeps
+the dock at five.
 
 ### 7.1 Workout tab — routine list (M1)
 
@@ -442,11 +450,15 @@ Presented full-screen over the Workout tab.
   to a single routine. Month headings apply only to the date orders.
 - Tap → **Session Detail**: every exercise with its sets (warmups marked), RPE if
   present, session notes.
+- Swipe a row to delete a workout, behind a confirmation. Nothing else refers to
+  a session, so unlike exercises and routines it has no archived state.
 - Editing sets from History is **M2**.
 
-### 7.5 Progress tab (M2)
+### 7.5 Exercises tab — library and per-exercise progress (M2)
 
-- Exercise picker (searchable).
+- The full library: create, edit, archive/unarchive, delete (when unused),
+  grouped by body part and searchable. Moved here from Settings.
+- Tap an exercise → its detail: flags, body part, lifetime PRs, and its charts.
 - For a weighted exercise: an **estimated 1RM** line chart (best working set per
   session) with a **Volume** toggle (per-session working volume), rep-PR markers,
   and a date-range control (8w / 6m / 1y / all).
@@ -454,11 +466,12 @@ Presented full-screen over the Workout tab.
   e1RM/volume.
 - Swift Charts; solid background.
 
-### 7.6 Dashboard tab (M2)
+### 7.6 Home tab (M2)
 
 - **Heatmap:** ~16–20 weeks, horizontally scrollable, GitHub-style. Intensity by
-  working-set count (or volume — [open question](#10-open-questions)); rest days
-  render in a flat neutral colour. Tap a day → that session.
+  **working-set count** — volume would render every bodyweight day as the
+  lightest shade. Rest days render in a flat neutral colour. Tap a day → that
+  session.
 - **Current streak** and **longest streak** (consecutive days).
 - **This week:** workout count + total volume.
 - **30-day volume** trend line.
@@ -468,8 +481,6 @@ Presented full-screen over the Workout tab.
 
 - **Unit** — kg / lb (display only; storage is always kg).
 - **Default rest** — global fallback, seconds.
-- **Manage exercises** — the full library: create, edit, archive/unarchive,
-  delete (when unused).
 - **Claude API key** — entered here, stored in Keychain (M5).
 - **About** — version, and the "don't delete the app / reinstall via ⌘R" note.
 
@@ -517,7 +528,11 @@ taught us.
 - Dashboard (heatmap, streak, weekly stats, recent PRs).
 - Edit past sets from History.
 
-### M3 — Widget
+### M3 — Widget — **blocked on a paid account**
+
+A widget cannot read the app's data without an App Group, and an App Group
+cannot be provisioned by a free personal team. M3 needs either a paid Apple
+Developer Program membership or to be dropped. Decide before starting it.
 
 - `ForgeWidgets` extension target, App Group wiring.
 - `WidgetSnapshot` writer on Finish.
@@ -559,7 +574,8 @@ Resolve at or before the relevant milestone; none block M1 start.
 
 1. **Seed exercise list** — [Appendix A](#appendix-a--seed-exercises) is a first
    draft; refine during M1.4.
-2. **Heatmap intensity metric** — working-set count vs total volume. Decide in M2.
+2. ~~**Heatmap intensity metric**~~ — resolved in M2: working-set count, so a
+   bodyweight day registers as honestly as a heavy squat day.
 3. **Stale-session handling** — M1 uses a launch-time prompt at ~6h; revisit
    whether a true midnight auto-finish is worth it later.
 4. **Chat context budget** — how many sessions / how much detail fits a

@@ -1,12 +1,13 @@
 import Foundation
 
 enum Preferences {
-    /// The App Group suite, so the widget reads the same settings in M3.
     /// Exposed because views bind to these keys with `@AppStorage`, which is
     /// what makes a unit change take effect everywhere at once.
-    static var defaults: UserDefaults {
-        UserDefaults(suiteName: PersistenceController.appGroupID) ?? .standard
-    }
+    ///
+    /// Standard defaults rather than an App Group suite: the group entitlement
+    /// needs a paid developer account, and an unprovisioned suite silently
+    /// fails to persist rather than returning nil.
+    static var defaults: UserDefaults { .standard }
 
     enum Key {
         static let weightUnit = "weightUnit"
