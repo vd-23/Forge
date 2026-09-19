@@ -3,11 +3,11 @@ import SwiftUI
 struct RootView: View {
     var body: some View {
         TabView {
-            Text("Workout")
+            RoutineListView()
                 .tabItem { Label("Workout", systemImage: "figure.strengthtraining.traditional") }
-            Text("History")
+            HistoryListView()
                 .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
-            Text("Settings")
+            SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
     }
@@ -15,4 +15,5 @@ struct RootView: View {
 
 #Preview {
     RootView()
+        .modelContainer(PersistenceController.makeInMemoryContainer())
 }
