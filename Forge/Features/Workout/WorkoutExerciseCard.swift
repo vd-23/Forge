@@ -25,16 +25,17 @@ struct WorkoutExerciseCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            ForEach(workoutExercise.orderedSets) { set in
+            ForEach(SetNumbering.number(workoutExercise.orderedSets)) { numbered in
                 SetEntryRow(
-                    set: set,
+                    set: numbered.exerciseSet,
+                    label: numbered.label,
                     isBodyweight: isBodyweight,
                     unit: unit,
                     onToggleComplete: {
-                        controller.toggleComplete(set)
-                        if set.isComplete { onSetCompleted(workoutExercise) }
+                        controller.toggleComplete(numbered.exerciseSet)
+                        if numbered.exerciseSet.isComplete { onSetCompleted(workoutExercise) }
                     },
-                    onDelete: { controller.deleteSet(set) }
+                    onDelete: { controller.deleteSet(numbered.exerciseSet) }
                 )
             }
 

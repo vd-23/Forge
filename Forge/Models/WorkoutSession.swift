@@ -22,6 +22,12 @@ final class WorkoutSession {
 
     var isActive: Bool { endedAt == nil }
 
+    /// `nil` while the workout is still running.
+    var durationSeconds: Int? {
+        guard let endedAt else { return nil }
+        return Int(endedAt.timeIntervalSince(startedAt).rounded())
+    }
+
     var orderedExercises: [WorkoutExercise] {
         exercises.sorted { $0.order < $1.order }
     }

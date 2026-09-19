@@ -83,7 +83,7 @@ struct ActiveWorkoutView: View {
             Button("Finish", action: finish)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Incomplete sets won't be counted.")
+            Text("Sets you haven't ticked off won't be saved.")
         }
         .alert("Discard this workout?", isPresented: $confirmDiscard) {
             Button("Discard", role: .destructive) {
@@ -103,8 +103,14 @@ struct ActiveWorkoutView: View {
         restTimer.start(seconds: workoutExercise.restSeconds ?? Preferences.defaultRestSeconds)
     }
 
+    /// A workout with nothing ticked off is discarded rather than summarised,
+    /// so it never becomes an empty row in history.
     private func finish() {
         restTimer.skip()
-        summary = controller.finish(session)
+        if let finished = controller.finish(session) {
+            summary = finished
+        } else {
+            dismiss()
+        }
     }
 }

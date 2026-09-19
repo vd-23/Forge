@@ -6,6 +6,8 @@ import SwiftUI
 struct SetEntryRow: View {
     @Bindable var set: ExerciseSet
 
+    /// Positional label from `SetNumbering` — "2" or "W".
+    let label: String
     let isBodyweight: Bool
     let unit: WeightUnit
     let onToggleComplete: () -> Void
@@ -21,16 +23,25 @@ struct SetEntryRow: View {
                 Text("BW")
                     .font(.callout.weight(.medium))
                     .foregroundStyle(.secondary)
-                numberField("+", value: addedWeightInUnit, width: 62)
+                NumericTextField(
+                    placeholder: "+",
+                    text: weightText(set.addedWeightKg),
+                    width: 62
+                ) { set.addedWeightKg = kilograms(from: $0) }
             } else {
-                numberField(unit.displayName, value: weightInUnit, width: 72)
+                NumericTextField(
+                    placeholder: unit.displayName,
+                    text: weightText(set.weightKg),
+                    width: 72
+                ) { set.weightKg = kilograms(from: $0) }
             }
 
-            TextField("reps", value: $set.reps, format: .number)
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.trailing)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 56)
+            NumericTextField(
+                placeholder: "reps",
+                text: set.reps > 0 ? "\(set.reps)" : "",
+                width: 56,
+                allowsDecimals: false
+            ) { set.reps = Int($0) ?? 0 }
 
             rpeMenu
 
@@ -58,7 +69,7 @@ struct SetEntryRow: View {
             }
             Button("Delete set", role: .destructive, action: onDelete)
         } label: {
-            Text(set.isWarmup ? "W" : "\(set.order + 1)")
+            Text(label)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(set.isWarmup ? Color.orange : Color.secondary)
                 .frame(width: 26, height: 26)
@@ -86,30 +97,17 @@ struct SetEntryRow: View {
         }
     }
 
-    private func numberField(_ placeholder: String, value: Binding<Double>, width: CGFloat) -> some View {
-        TextField(placeholder, value: value, format: .number.precision(.fractionLength(0...2)))
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.trailing)
-            .textFieldStyle(.roundedBorder)
-            .frame(width: width)
+    // MARK: Conversion
+
+    private func weightText(_ kilograms: Double?) -> String {
+        guard let kilograms else { return "" }
+        return NumericTextField.format(WeightFormatting.editableValue(kilograms, unit: unit))
     }
 
-    // MARK: Bindings
-
-    /// Zero reads as "not entered", which keeps the field a plain `Double` and
-    /// avoids an optional-formatted text field.
-    private var weightInUnit: Binding<Double> {
-        Binding(
-            get: { WeightFormatting.editableValue(set.weightKg ?? 0, unit: unit) },
-            set: { set.weightKg = $0 > 0 ? WeightFormatting.kilograms(from: $0, unit: unit) : nil }
-        )
-    }
-
-    private var addedWeightInUnit: Binding<Double> {
-        Binding(
-            get: { WeightFormatting.editableValue(set.addedWeightKg ?? 0, unit: unit) },
-            set: { set.addedWeightKg = $0 > 0 ? WeightFormatting.kilograms(from: $0, unit: unit) : nil }
-        )
+    /// An empty or unparseable field means "not entered", not zero.
+    private func kilograms(from input: String) -> Double? {
+        guard let entered = NumericTextField.parse(input), entered > 0 else { return nil }
+        return WeightFormatting.kilograms(from: entered, unit: unit)
     }
 
     private static func rpeLabel(_ value: Double) -> String {

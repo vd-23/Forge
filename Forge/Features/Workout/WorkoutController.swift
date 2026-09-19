@@ -55,12 +55,19 @@ final class WorkoutController {
         return session
     }
 
-    /// Stamps the session finished and returns what it amounted to.
+    /// Stamps the session finished and returns what it amounted to, or `nil`
+    /// when nothing was logged and the session was discarded instead.
     ///
     /// History is read *before* the end timestamp is written, so the session
     /// being finished cannot count as its own previous best.
     @discardableResult
-    func finish(_ session: WorkoutSession) -> WorkoutSummary {
+    func finish(_ session: WorkoutSession) -> WorkoutSummary? {
+        guard session.exercises.contains(where: { $0.sets.contains(where: \.isComplete) }) else {
+            discard(session)
+            return nil
+        }
+        pruneUnloggedWork(from: session)
+
         let history = finishedSessionInputs(excluding: session.id)
         let finishedAt = Date.now
         session.endedAt = finishedAt
@@ -113,7 +120,13 @@ final class WorkoutController {
     }
 
     func deleteSet(_ set: ExerciseSet) {
+        // The survivors are captured before the delete: the relationship may
+        // not have dropped the deleted set yet when we renumber.
+        let survivors = set.workoutExercise?.orderedSets.filter { $0 !== set } ?? []
         context.delete(set)
+        for (position, survivor) in survivors.enumerated() where survivor.order != position {
+            survivor.order = position
+        }
         save()
     }
 
@@ -130,6 +143,19 @@ final class WorkoutController {
             try context.save()
         } catch {
             assertionFailure("WorkoutController save failed: \(error)")
+        }
+    }
+
+    /// A set that was never ticked was never performed — volume and PRs already
+    /// ignored it, so keeping it only litters history. An exercise that was
+    /// planned but never worked goes with its sets.
+    private func pruneUnloggedWork(from session: WorkoutSession) {
+        for workoutExercise in session.exercises {
+            let wasWorked = workoutExercise.sets.contains(where: \.isComplete)
+            for set in workoutExercise.sets where !set.isComplete {
+                context.delete(set)
+            }
+            if !wasWorked { context.delete(workoutExercise) }
         }
     }
 

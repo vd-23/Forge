@@ -1,8 +1,117 @@
 import SwiftUI
+import SwiftData
+import ForgeCore
 
-// Placeholder — replaced by the real history list in Task 18.
 struct HistoryListView: View {
+    @Query(filter: #Predicate<WorkoutSession> { $0.endedAt != nil })
+    private var sessions: [WorkoutSession]
+
+    @AppStorage(Preferences.Key.weightUnit, store: Preferences.defaults)
+    private var unit: WeightUnit = .kg
+
+    @State private var sort: HistorySort = .newest
+    @State private var routineFilter: String?
+
+    private var visible: [WorkoutSession] {
+        HistoryFiltering.apply(to: sessions, sort: sort, routine: routineFilter)
+    }
+
     var body: some View {
-        Text("History")
+        NavigationStack {
+            Group {
+                if sessions.isEmpty {
+                    ContentUnavailableView {
+                        Label("No workouts yet", systemImage: "clock.arrow.circlepath")
+                    } description: {
+                        Text("Finished workouts show up here.")
+                    }
+                } else if visible.isEmpty {
+                    ContentUnavailableView {
+                        Label("No matching workouts", systemImage: "line.3.horizontal.decrease.circle")
+                    } actions: {
+                        Button("Show all routines") { routineFilter = nil }
+                    }
+                } else {
+                    list
+                }
+            }
+            .navigationTitle("History")
+            .toolbar {
+                if !sessions.isEmpty {
+                    ToolbarItem(placement: .primaryAction) { sortAndFilterMenu }
+                }
+            }
+            .navigationDestination(for: WorkoutSession.self) { session in
+                SessionDetailView(session: session)
+            }
+        }
+    }
+
+    private var list: some View {
+        List {
+            if sort.groupsByMonth {
+                ForEach(MonthGrouping.sections(visible, newestFirst: sort == .newest)) { section in
+                    Section(section.title) { rows(section.sessions) }
+                }
+            } else {
+                Section { rows(visible) }
+            }
+        }
+    }
+
+    private func rows(_ sessions: [WorkoutSession]) -> some View {
+        ForEach(sessions) { session in
+            NavigationLink(value: session) {
+                HistoryRow(session: session, unit: unit)
+            }
+        }
+    }
+
+    private var sortAndFilterMenu: some View {
+        Menu {
+            Picker("Sort", selection: $sort) {
+                ForEach(HistorySort.allCases) { Text($0.displayName).tag($0) }
+            }
+
+            Picker("Routine", selection: $routineFilter) {
+                Text("All routines").tag(String?.none)
+                ForEach(HistoryFiltering.routineNames(in: sessions), id: \.self) { name in
+                    Text(name).tag(String?.some(name))
+                }
+            }
+        } label: {
+            Label(
+                "Sort and filter",
+                systemImage: routineFilter == nil
+                    ? "line.3.horizontal.decrease.circle"
+                    : "line.3.horizontal.decrease.circle.fill"
+            )
+        }
+    }
+}
+
+private struct HistoryRow: View {
+    let session: WorkoutSession
+    let unit: WeightUnit
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(session.sourceRoutineName)
+                .font(.headline)
+
+            HStack(spacing: 6) {
+                Text(session.startedAt.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                if let seconds = session.durationSeconds {
+                    Text("·")
+                    Text(DurationFormatting.short(seconds: seconds))
+                }
+                Text("·")
+                Text(WeightFormatting.display(
+                    sessionVolumeKg(session.coreInput), unit: unit, fractionDigits: 0
+                ))
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
     }
 }

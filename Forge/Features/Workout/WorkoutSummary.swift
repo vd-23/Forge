@@ -18,11 +18,7 @@ struct WorkoutSummary: Identifiable {
     let bodyParts: [BodyPart]
     let prHits: [PRHitDisplay]
 
-    var durationLabel: String {
-        let minutes = max(0, durationSeconds) / 60
-        guard minutes >= 60 else { return "\(minutes) min" }
-        return String(format: "%dh %02dm", minutes / 60, minutes % 60)
-    }
+    var durationLabel: String { DurationFormatting.short(seconds: durationSeconds) }
 }
 
 @MainActor

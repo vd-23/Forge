@@ -41,7 +41,7 @@ enum LastPerformance {
 
         var groups: [(load: String, reps: [Int])] = []
         for set in sets {
-            let load = loadLabel(for: set, isBodyweight: isBodyweight, unit: unit)
+            let load = SetFormatting.loadLabel(set, isBodyweight: isBodyweight, unit: unit)
             if groups.last?.load == load {
                 groups[groups.count - 1].reps.append(set.reps)
             } else {
@@ -52,14 +52,5 @@ enum LastPerformance {
         return groups
             .map { "\($0.load) × \($0.reps.map(String.init).joined(separator: ", "))" }
             .joined(separator: " · ")
-    }
-
-    private static func loadLabel(for set: ExerciseSet, isBodyweight: Bool, unit: WeightUnit) -> String {
-        if isBodyweight {
-            guard let added = set.addedWeightKg, added > 0 else { return "BW" }
-            return "BW + " + WeightFormatting.display(added, unit: unit)
-        }
-        guard let weight = set.weightKg else { return "—" }
-        return WeightFormatting.display(weight, unit: unit)
     }
 }
