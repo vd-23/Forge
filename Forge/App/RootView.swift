@@ -29,7 +29,7 @@ struct RootView: View {
                 .tag(Tab.settings)
         }
         .tint(ForgeColor.accentFill)
-        .onChange(of: selectedTab) { _, _ in Haptics.selection() }
+        .onChange(of: selectedTab) { _, _ in Haptics.dock() }
         .tabViewBottomAccessory(isEnabled: controller.restTimer.endsAt != nil) {
             RestTimerBar(timer: controller.restTimer, onTap: openActiveWorkout)
         }

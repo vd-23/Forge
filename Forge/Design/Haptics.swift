@@ -10,6 +10,8 @@ enum Haptics {
     static func tick() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
     static func heavy() { UIImpactFeedbackGenerator(style: .rigid).impactOccurred() }
     static func selection() { UISelectionFeedbackGenerator().selectionChanged() }
+    /// Tab switches: a touch firmer than a selection tick.
+    static func dock() { UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.85) }
     static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
     static func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
 }
