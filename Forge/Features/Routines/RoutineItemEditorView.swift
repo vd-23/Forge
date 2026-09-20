@@ -58,6 +58,7 @@ struct RoutineItemEditorView: View {
                 }
             }
         }
+        .forgeForm()
         .navigationTitle(item.exercise?.name ?? "Exercise")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: repMin) { if repMax < repMin { repMax = repMin } }

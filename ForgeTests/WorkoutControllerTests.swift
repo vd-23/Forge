@@ -61,13 +61,37 @@ struct WorkoutControllerTests {
         let session = try controller.start(from: routine)
         let we = session.orderedExercises[0]
 
+        // The routine plans 3 squat sets, so those already exist.
+        let planned = we.orderedSets.count
         let first = controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false)
         let second = controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: 8, isWarmup: false)
 
-        #expect(first.order == 0)
-        #expect(second.order == 1)
-        #expect(we.orderedSets.count == 2)
+        #expect(planned == 3)
+        #expect(first.order == 3)
+        #expect(second.order == 4)
+        #expect(we.orderedSets.count == 5)
         #expect(we.orderedSets.allSatisfy { !$0.isComplete })
+    }
+
+    @Test func startPrefillsPlannedSetsFromLastTime() throws {
+        let (routine, _, _) = makeRoutine()
+        let controller = WorkoutController(context: ctx)
+
+        let earlier = try controller.start(from: routine)
+        let squat = earlier.orderedExercises[0]
+        for (index, set) in squat.orderedSets.enumerated() {
+            set.weightKg = 100 + Double(index) * 5
+            controller.toggleComplete(set)
+        }
+        controller.finish(earlier)
+
+        let session = try controller.start(from: routine)
+        let sets = session.orderedExercises[0].orderedSets
+        #expect(sets.map(\.weightKg) == [100, 105, 110])
+        #expect(sets.map(\.reps) == [5, 5, 5])
+        #expect(sets.allSatisfy { !$0.isComplete })
+        // The curl has no target count and no history, so nothing is laid out.
+        #expect(session.orderedExercises[1].sets.isEmpty)
     }
 
     @Test func toggleCompleteStampsAndClearsCompletedAt() throws {
@@ -138,9 +162,7 @@ struct WorkoutControllerTests {
         let session = try controller.start(from: routine)
         let squat = session.orderedExercises[0]
 
-        for _ in 0..<3 {
-            controller.addSet(to: squat, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false)
-        }
+        #expect(squat.orderedSets.map(\.order) == [0, 1, 2])
         controller.deleteSet(squat.orderedSets[1])
 
         #expect(squat.orderedSets.map(\.order) == [0, 1])

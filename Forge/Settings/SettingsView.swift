@@ -9,21 +9,31 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Units") {
+                Section {
                     Picker("Weight unit", selection: $weightUnit) {
                         ForEach(WeightUnit.allCases) { Text($0.displayName).tag($0) }
                     }
+                } header: {
+                    SectionLabel("Units").textCase(nil)
                 }
-                Section("Rest timer") {
-                    Stepper("Default rest: \(restSeconds)s", value: $restSeconds, in: 30...600, step: 15)
+                Section {
+                    Stepper(value: $restSeconds, in: 30...600, step: 15) {
+                        LabeledContent("Default rest", value: RestTimerBar.clock(restSeconds))
+                    }
+                } header: {
+                    SectionLabel("Rest timer").textCase(nil)
                 }
-                Section("About") {
+                Section {
                     LabeledContent("Version", value: "0.1.0")
+                } header: {
+                    SectionLabel("About").textCase(nil)
+                } footer: {
                     Text("Free personal signing: don't delete the app. Re-run from Xcode (⌘R) when it stops launching.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ForgeColor.ink3)
                 }
             }
+            .forgeForm()
             .navigationTitle("Settings")
         }
     }

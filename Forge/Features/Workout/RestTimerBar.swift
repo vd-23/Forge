@@ -1,41 +1,80 @@
 import SwiftUI
 
-/// The countdown strip pinned above the keyboard-safe area during a workout.
-/// It renders nothing while no rest is running, and hides itself when the
-/// countdown reaches zero — the `TimelineView` tick is what notices, since
-/// `RestTimer` only stores an end date and never mutates as time passes.
+/// The rest countdown, drawn inside the tab bar's bottom accessory so it floats
+/// on system glass and follows the user across tabs. `RestTimer` stores only an
+/// end date, so a `TimelineView` tick derives the remaining seconds and tells
+/// the timer when it has run out. Tapping the clock (not the −30/+30/Skip
+/// controls) jumps back to the workout that's resting.
 struct RestTimerBar: View {
     let timer: RestTimer
+    let onTap: () -> Void
+
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            if timer.isRunning(at: context.date) {
-                bar(remaining: timer.remaining(at: context.date))
+            let remaining = timer.remaining(at: context.date)
+            Group {
+                if placement == .inline {
+                    compact(remaining: remaining)
+                } else {
+                    expanded(remaining: remaining)
+                }
+            }
+            .onChange(of: context.date) { _, now in
+                timer.expireIfNeeded(at: now)
             }
         }
     }
 
-    private func bar(remaining: Int) -> some View {
-        HStack(spacing: 16) {
-            Button("−30") { timer.addSeconds(-30) }
+    private func expanded(remaining: Int) -> some View {
+        HStack(spacing: 10) {
+            Button(action: onTap) {
+                VStack(alignment: .leading, spacing: 0) {
+                    SectionLabel("Rest")
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(Self.clock(remaining))
+                            .font(.system(size: 28, weight: .bold).monospacedDigit())
+                            .foregroundStyle(ForgeColor.ink)
+                        if let note = timer.note {
+                            Text(note)
+                                .font(ForgeType.meta)
+                                .foregroundStyle(ForgeColor.ink2)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
 
-            Text(Self.clock(remaining))
-                .font(.title2.weight(.semibold))
-                .monospacedDigit()
-                .frame(minWidth: 72)
-
-            Button("+30") { timer.addSeconds(30) }
-
-            Divider().frame(height: 22)
-
-            Button("Skip") { timer.skip() }
+            Spacer(minLength: 4)
+            Button("−30") { Haptics.tap(); timer.addSeconds(-30) }
+            Button("+30") { Haptics.tap(); timer.addSeconds(30) }
+            Button("Skip") { Haptics.tap(); timer.skip() }
+                .buttonStyle(.glassProminent)
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity)
-        .background(.bar)
+        .buttonStyle(.glass)
+        .font(.system(size: 14, weight: .semibold))
+        .padding(.leading, 18)
+        .padding(.trailing, 10)
+    }
+
+    private func compact(remaining: Int) -> some View {
+        Button(action: onTap) {
+            HStack(spacing: 8) {
+                Image(systemName: "timer").font(.system(size: 13, weight: .semibold))
+                Text(Self.clock(remaining))
+                    .font(.system(size: 15, weight: .bold).monospacedDigit())
+                if let note = timer.note {
+                    Text(note).font(ForgeType.meta).foregroundStyle(ForgeColor.ink2)
+                }
+            }
+            .foregroundStyle(ForgeColor.ink)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 14)
     }
 
     static func clock(_ seconds: Int) -> String {

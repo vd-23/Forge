@@ -38,6 +38,7 @@ struct HistoryListView: View {
                     list
                 }
             }
+            .forgeBackground()
             .navigationTitle("History")
             .toolbar {
                 if !sessions.isEmpty {
@@ -71,23 +72,42 @@ struct HistoryListView: View {
         List {
             if sort.groupsByMonth {
                 ForEach(MonthGrouping.sections(visible, newestFirst: sort == .newest)) { section in
-                    Section(section.title) { rows(section.sessions) }
+                    Section {
+                        rows(section.sessions)
+                    } header: {
+                        SectionLabel(section.title, trailing: summary(of: section.sessions)).textCase(nil)
+                    }
                 }
             } else {
-                Section { rows(visible) }
+                Section {
+                    rows(visible)
+                } header: {
+                    SectionLabel(sort.displayName, trailing: summary(of: visible)).textCase(nil)
+                }
             }
         }
+        .scrollContentBackground(.hidden)
+    }
+
+    private func summary(of sessions: [WorkoutSession]) -> String {
+        let volume = sessions.reduce(0) { $0 + sessionVolumeKg($1.coreInput) }
+        let count = sessions.count
+        return "\(count) workout\(count == 1 ? "" : "s") · \(WeightFormatting.number(volume, unit: unit, fractionDigits: 0)) \(unit.rawValue)"
     }
 
     private func rows(_ sessions: [WorkoutSession]) -> some View {
-        ForEach(sessions) { session in
+        let maxVolume = sessions.map { sessionVolumeKg($0.coreInput) }.max() ?? 0
+        return ForEach(sessions) { session in
             NavigationLink(value: session) {
-                HistoryRow(session: session, unit: unit)
+                HistoryRow(session: session, unit: unit, maxVolumeKg: maxVolume)
             }
+            .listRowBackground(ForgeColor.surface)
+            .listRowSeparatorTint(ForgeColor.divider)
             .swipeActions(edge: .trailing) {
                 Button("Delete", systemImage: "trash", role: .destructive) {
                     pendingDeletion = session
                 }
+                .tint(.red)
             }
         }
     }
@@ -118,25 +138,48 @@ struct HistoryListView: View {
 private struct HistoryRow: View {
     let session: WorkoutSession
     let unit: WeightUnit
+    /// Largest volume in the same section, so the bar under each figure reads
+    /// relative to its neighbours.
+    let maxVolumeKg: Double
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(session.sourceRoutineName)
-                .font(.headline)
+        let volume = sessionVolumeKg(session.coreInput)
 
-            HStack(spacing: 6) {
-                Text(session.startedAt.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                if let seconds = session.durationSeconds {
-                    Text("·")
-                    Text(DurationFormatting.short(seconds: seconds))
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(session.sourceRoutineName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(ForgeColor.ink)
+                HStack(spacing: 5) {
+                    Text(session.startedAt.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                    if let seconds = session.durationSeconds {
+                        Text("·")
+                        Text(DurationFormatting.short(seconds: seconds))
+                    }
                 }
-                Text("·")
-                Text(WeightFormatting.display(
-                    sessionVolumeKg(session.coreInput), unit: unit, fractionDigits: 0
-                ))
+                .font(ForgeType.meta)
+                .foregroundStyle(ForgeColor.ink3)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 5) {
+                MeasureText(
+                    value: WeightFormatting.number(volume, unit: unit, fractionDigits: 0),
+                    unit: unit.rawValue,
+                    valueFont: .system(size: 17, weight: .bold).monospacedDigit(),
+                    unitFont: .system(size: 11, weight: .medium)
+                )
+                Capsule()
+                    .fill(ForgeColor.hairline)
+                    .frame(width: 72, height: 3)
+                    .overlay(alignment: .trailing) {
+                        Capsule()
+                            .fill(ForgeColor.accent)
+                            .frame(width: maxVolumeKg > 0 ? 72 * volume / maxVolumeKg : 0)
+                    }
+            }
         }
+        .padding(.vertical, 4)
     }
 }

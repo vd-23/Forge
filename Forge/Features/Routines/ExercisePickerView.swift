@@ -43,6 +43,7 @@ struct ExercisePickerView: View {
             }
         }
         .searchable(text: $search)
+        .forgeForm()
         .navigationTitle("Add Exercise")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

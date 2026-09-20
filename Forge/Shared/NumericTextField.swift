@@ -12,29 +12,60 @@ import SwiftUI
 /// is unfocused means edits still save as you type, but nothing rewrites what
 /// you are in the middle of typing.
 struct NumericTextField: View {
+    enum Style {
+        /// Bordered box for the set being worked.
+        case boxed
+        /// Bare text for logged and upcoming sets.
+        case plain
+    }
+
     let placeholder: String
     /// The model's current value, already formatted for display.
     let text: String
-    let width: CGFloat
+    var suffix: String?
+    var style: Style = .plain
     var allowsDecimals: Bool = true
+    var tint: Color = ForgeColor.ink
     let onEdit: (String) -> Void
 
     @State private var draft = ""
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        TextField(placeholder, text: $draft)
-            .keyboardType(allowsDecimals ? .decimalPad : .numberPad)
-            .multilineTextAlignment(.trailing)
-            .textFieldStyle(.roundedBorder)
-            .frame(width: width)
-            .focused($isFocused)
-            .onChange(of: draft) { _, newDraft in
-                if isFocused { onEdit(newDraft) }
+        HStack(alignment: .firstTextBaseline, spacing: 2) {
+            TextField(placeholder, text: $draft)
+                .keyboardType(allowsDecimals ? .decimalPad : .numberPad)
+                .multilineTextAlignment(style == .boxed ? .center : .leading)
+                .font(style == .boxed
+                    ? .system(size: 22, weight: .semibold).monospacedDigit()
+                    : .system(size: 17, weight: .medium).monospacedDigit())
+                .foregroundStyle(tint)
+                .textFieldStyle(.plain)
+                .focused($isFocused)
+                .onChange(of: draft) { _, newDraft in
+                    if isFocused { onEdit(newDraft) }
+                }
+                .onChange(of: text, initial: true) { _, newText in
+                    if !isFocused { draft = newText }
+                }
+            if let suffix, style == .boxed {
+                Text(suffix)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(ForgeColor.ink3)
             }
-            .onChange(of: text, initial: true) { _, newText in
-                if !isFocused { draft = newText }
+        }
+        .padding(.horizontal, style == .boxed ? 8 : 0)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: style == .boxed ? 46 : nil)
+        .background(style == .boxed ? ForgeColor.surface : .clear, in: .rect(cornerRadius: 12))
+        .overlay {
+            if style == .boxed {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(isFocused ? ForgeColor.accentFill : ForgeColor.hairline, lineWidth: isFocused ? 1.5 : 1)
             }
+        }
+        .contentShape(.rect)
+        .onTapGesture { isFocused = true }
     }
 
     /// No grouping separator: "1,000" is not something you can keep typing into.
@@ -44,5 +75,23 @@ struct NumericTextField: View {
 
     static func parse(_ input: String) -> Double? {
         Double(input.replacingOccurrences(of: ",", with: "."))
+    }
+}
+
+extension View {
+    /// Number pads have no Return key, so screens holding `NumericTextField`s
+    /// need their own way to dismiss the keyboard. Applied once per screen:
+    /// attaching it to each field would stack one Done button per field.
+    func numericKeyboardDoneButton() -> some View {
+        toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+                    )
+                }
+            }
+        }
     }
 }

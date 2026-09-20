@@ -17,6 +17,8 @@ protocol RestNotifying {
 @MainActor
 final class RestTimer {
     private(set) var endsAt: Date?
+    /// What comes after the rest — "next: set 4" — shown beside the countdown.
+    private(set) var note: String?
     private let notifier: RestNotifying
 
     init(notifier: RestNotifying = LocalRestNotifier()) {
@@ -27,9 +29,18 @@ final class RestTimer {
 
     func isRunning(at now: Date) -> Bool { (endsAt ?? .distantPast) > now }
 
-    func start(seconds: Int, now: Date = .now) {
+    func start(seconds: Int, note: String? = nil, now: Date = .now) {
         endsAt = now.addingTimeInterval(TimeInterval(seconds))
+        self.note = note
         notifier.schedule(after: seconds)
+    }
+
+    /// Called by the ticking view once the countdown reaches zero, so observers
+    /// keyed on `endsAt` (the tab accessory) see it end.
+    func expireIfNeeded(at now: Date = .now) {
+        guard let endsAt, endsAt <= now else { return }
+        self.endsAt = nil
+        note = nil
     }
 
     /// Extends or trims a running countdown. Trimming past zero just ends it.
@@ -40,6 +51,7 @@ final class RestTimer {
 
     func skip() {
         endsAt = nil
+        note = nil
         notifier.cancel()
     }
 

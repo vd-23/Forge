@@ -55,6 +55,7 @@ struct RoutineEditorView: View {
                 Button("Add exercise", systemImage: "plus") { pickingExercise = true }
             }
         }
+        .forgeForm()
         .navigationTitle(routine == nil ? "New Routine" : "Edit Routine")
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.editMode, .constant(.active))
