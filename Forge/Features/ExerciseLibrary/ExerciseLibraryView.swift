@@ -33,14 +33,20 @@ struct ExerciseLibraryView: View {
         NavigationStack {
             List {
                 ForEach(grouped, id: \.bodyPart) { group in
-                    Section(group.bodyPart.displayName) {
+                    Section {
                         ForEach(group.items) { exercise in
                             NavigationLink(value: exercise) { row(exercise) }
                                 .swipeActions(edge: .trailing) { actions(for: exercise) }
+                                .listRowBackground(ForgeColor.surface)
+                                .listRowSeparatorTint(ForgeColor.divider)
                         }
+                    } header: {
+                        SectionLabel(group.bodyPart.displayName).textCase(nil)
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .forgeBackground()
             .navigationTitle("Exercises")
             .searchable(text: $search)
             .overlay {
@@ -74,12 +80,15 @@ struct ExerciseLibraryView: View {
     // MARK: Rows
 
     private func row(_ exercise: Exercise) -> some View {
-        HStack {
+        HStack(spacing: 8) {
             Text(exercise.name)
+                .font(.body)
+                .foregroundStyle(ForgeColor.ink)
             Spacer()
-            if exercise.isBodyweight { FlagTag("BW") }
-            if exercise.isUnilateral { FlagTag("×2") }
+            if exercise.isBodyweight { Chip("BW") }
+            if exercise.isUnilateral { Chip("×2") }
         }
+        .padding(.vertical, 4)
         .opacity(scope.isArchived ? 0.6 : 1)
     }
 
@@ -88,6 +97,7 @@ struct ExerciseLibraryView: View {
         Button("Delete", systemImage: "trash", role: .destructive) {
             delete(exercise)
         }
+        .tint(.red)
         if scope.isArchived {
             Button("Unarchive", systemImage: "arrow.uturn.backward") {
                 exercise.isArchived = false
@@ -148,18 +158,6 @@ struct ExerciseLibraryView: View {
     }
 }
 
-private struct FlagTag: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-
-    var body: some View {
-        Text(text)
-            .font(.caption2.bold())
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.quaternary, in: Capsule())
-    }
-}
 
 #Preview {
     let container = PersistenceController.makeInMemoryContainer()

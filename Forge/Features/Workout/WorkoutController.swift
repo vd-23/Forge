@@ -13,9 +13,13 @@ import SwiftData
 final class WorkoutController {
     private let context: ModelContext
     private(set) var activeSession: WorkoutSession?
+    /// Lives here rather than in the workout screen so the countdown can sit in
+    /// the tab bar's accessory and survive leaving the screen.
+    let restTimer: RestTimer
 
-    init(context: ModelContext) {
+    init(context: ModelContext, restTimer: RestTimer = RestTimer()) {
         self.context = context
+        self.restTimer = restTimer
         self.activeSession = Self.fetchActiveSession(in: context)
     }
 
@@ -39,7 +43,7 @@ final class WorkoutController {
 
         for item in routine.orderedItems {
             guard let exercise = item.exercise else { continue }
-            session.exercises.append(WorkoutExercise(
+            let workoutExercise = WorkoutExercise(
                 exercise: exercise,
                 exerciseID: exercise.id,
                 order: item.order,
@@ -47,7 +51,9 @@ final class WorkoutController {
                 targetRepMin: item.targetRepMin,
                 targetRepMax: item.targetRepMax,
                 restSeconds: item.targetRestSeconds ?? exercise.defaultRestSeconds
-            ))
+            )
+            session.exercises.append(workoutExercise)
+            prefillSets(for: workoutExercise, in: session)
         }
 
         save()
@@ -62,6 +68,7 @@ final class WorkoutController {
     /// being finished cannot count as its own previous best.
     @discardableResult
     func finish(_ session: WorkoutSession) -> WorkoutSummary? {
+        restTimer.skip()
         guard session.exercises.contains(where: { $0.sets.contains(where: \.isComplete) }) else {
             discard(session)
             return nil
@@ -78,9 +85,34 @@ final class WorkoutController {
     }
 
     func discard(_ session: WorkoutSession) {
+        restTimer.skip()
         context.delete(session)
         save()
         if activeSession?.id == session.id { activeSession = nil }
+    }
+
+    /// Sets are laid out up front so the screen shows the whole plan: the
+    /// routine's target count, each pre-filled from the matching set last time
+    /// (or the last one logged, when there are fewer). They start unticked and
+    /// are pruned at finish if never done, so nothing is logged by default.
+    private func prefillSets(for workoutExercise: WorkoutExercise, in session: WorkoutSession) {
+        let last = LastPerformance.mostRecentSets(
+            ofExerciseID: workoutExercise.exerciseID,
+            excludingSession: session.id,
+            in: context
+        )
+        let count = workoutExercise.targetSets ?? last.count
+        guard count > 0 else { return }
+
+        for index in 0..<count {
+            let reference = last.isEmpty ? nil : last[min(index, last.count - 1)]
+            workoutExercise.sets.append(ExerciseSet(
+                order: index,
+                weightKg: reference?.weightKg,
+                addedWeightKg: reference?.addedWeightKg,
+                reps: reference?.reps ?? workoutExercise.targetRepMin ?? 8
+            ))
+        }
     }
 
     // MARK: Editing
@@ -93,6 +125,57 @@ final class WorkoutController {
             order: order,
             restSeconds: exercise.defaultRestSeconds
         ))
+        save()
+    }
+
+    /// Reorders the session's exercises with `IndexSet`/offset semantics, as
+    /// `List.onMove` reports them. Every survivor's `order` is rewritten so it
+    /// stays contiguous.
+    func moveExercises(in session: WorkoutSession, from source: IndexSet, to destination: Int) {
+        var exercises = session.orderedExercises
+        exercises.move(fromOffsets: source, toOffset: destination)
+        for (position, exercise) in exercises.enumerated() where exercise.order != position {
+            exercise.order = position
+        }
+        save()
+    }
+
+    /// Drops an exercise from the session along with anything logged in it.
+    func removeExercise(_ workoutExercise: WorkoutExercise) {
+        let survivors = workoutExercise.session?.orderedExercises.filter { $0 !== workoutExercise } ?? []
+        context.delete(workoutExercise)
+        for (position, survivor) in survivors.enumerated() where survivor.order != position {
+            survivor.order = position
+        }
+        save()
+    }
+
+    /// Rewrites the routine's items to match the exercises the workout ended up
+    /// with. Existing items keep their targets; exercises added mid-workout
+    /// start with none.
+    func updateRoutine(_ routine: Routine, toMatch plan: [RoutineSync.PlannedExercise]) {
+        let existing = Dictionary(routine.items.map { ($0.exercise?.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var kept: [RoutineItem] = []
+        for (position, planned) in plan.enumerated() {
+            if let item = existing[planned.exercise.id] {
+                item.order = position
+                kept.append(item)
+            } else {
+                let item = RoutineItem(
+                    exercise: planned.exercise,
+                    order: position,
+                    targetSets: planned.targetSets,
+                    targetRepMin: planned.targetRepMin,
+                    targetRepMax: planned.targetRepMax,
+                    targetRestSeconds: planned.restSeconds
+                )
+                routine.items.append(item)
+                kept.append(item)
+            }
+        }
+        for item in routine.items where !kept.contains(where: { $0 === item }) {
+            context.delete(item)
+        }
         save()
     }
 

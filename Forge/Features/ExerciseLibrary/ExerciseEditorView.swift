@@ -54,6 +54,7 @@ struct ExerciseEditorView: View {
                 }
             }
         }
+        .forgeForm()
         .navigationTitle(exercise == nil ? "New Exercise" : "Edit Exercise")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

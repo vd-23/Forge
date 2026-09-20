@@ -26,6 +26,7 @@ struct HomePRRow: Identifiable {
     let id = UUID()
     let exerciseName: String
     let kind: PRKind
+    let value: Double
     let date: Date
 }
 
@@ -34,6 +35,7 @@ struct HomeSummary {
     let currentStreak: Int
     let longestStreak: Int
     let thisWeekWorkouts: Int
+    let lastWeekWorkouts: Int
     let thisWeekVolumeKg: Double
     let weeks: [HeatmapWeek]
     let dailyVolume: [SeriesPoint]
@@ -43,6 +45,7 @@ struct HomeSummary {
         currentStreak: 0,
         longestStreak: 0,
         thisWeekWorkouts: 0,
+        lastWeekWorkouts: 0,
         thisWeekVolumeKg: 0,
         weeks: [],
         dailyVolume: [],
@@ -82,11 +85,17 @@ enum HomeSummaryBuilder {
         let thisWeekSessions = finished.filter { session in
             thisWeek?.contains(session.startedAt) ?? false
         }
+        let lastWeek = thisWeek.flatMap { interval -> DateInterval? in
+            guard let start = calendar.date(byAdding: .weekOfYear, value: -1, to: interval.start) else { return nil }
+            return DateInterval(start: start, end: interval.start)
+        }
+        let lastWeekCount = finished.filter { lastWeek?.contains($0.startedAt) ?? false }.count
 
         return HomeSummary(
             currentStreak: currentStreakDays(inputs, today: today, calendar: calendar),
             longestStreak: longestStreakDays(inputs, calendar: calendar),
             thisWeekWorkouts: thisWeekSessions.count,
+            lastWeekWorkouts: lastWeekCount,
             thisWeekVolumeKg: thisWeekSessions.reduce(0) { $0 + sessionVolumeKg($1.coreInput) },
             weeks: weeks,
             dailyVolume: dailyVolumeSeries(inputs, window: volumeWindow, calendar: calendar),
@@ -94,6 +103,7 @@ enum HomeSummaryBuilder {
                 HomePRRow(
                     exerciseName: names[dated.hit.exerciseID] ?? "Exercise",
                     kind: dated.hit.kind,
+                    value: dated.hit.value,
                     date: dated.date
                 )
             }
