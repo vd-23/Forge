@@ -1,8 +1,12 @@
 import SwiftUI
 import ForgeCore
 
-/// Everything logged in one finished workout, set by set.
+/// Everything logged in one finished workout, set by set — and editable, so a
+/// mistyped load can be fixed after the fact. Nothing is recomputed on edit:
+/// volume, PRs and charts all derive from the sets on read.
 struct SessionDetailView: View {
+    @Environment(WorkoutController.self) private var controller
+
     let session: WorkoutSession
 
     @AppStorage(Preferences.Key.weightUnit, store: Preferences.defaults)
@@ -25,47 +29,39 @@ struct SessionDetailView: View {
 
             ForEach(session.orderedExercises) { workoutExercise in
                 Section(workoutExercise.exercise?.name ?? "—") {
-                    if workoutExercise.orderedSets.isEmpty {
-                        Text("No sets logged")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(workoutExercise.orderedSets) { set in
-                            row(set, isBodyweight: workoutExercise.exercise?.isBodyweight ?? false)
-                        }
+                    let isBodyweight = workoutExercise.exercise?.isBodyweight ?? false
+                    ForEach(SetNumbering.number(workoutExercise.orderedSets)) { numbered in
+                        SetEntryRow(
+                            set: numbered.exerciseSet,
+                            label: numbered.label,
+                            isBodyweight: isBodyweight,
+                            unit: unit,
+                            onToggleComplete: { controller.toggleComplete(numbered.exerciseSet) },
+                            onDelete: { controller.deleteSet(numbered.exerciseSet) }
+                        )
                     }
+
+                    Button("Add set", systemImage: "plus") { addSet(to: workoutExercise) }
+                        .font(.subheadline)
                 }
             }
         }
         .navigationTitle(session.sourceRoutineName)
         .navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
     }
 
-    /// Sets that didn't count toward volume are kept visible but dimmed and
-    /// tagged, so the record of the session stays honest.
-    private func row(_ set: ExerciseSet, isBodyweight: Bool) -> some View {
-        HStack(spacing: 8) {
-            Text(SetFormatting.line(set, isBodyweight: isBodyweight, unit: unit))
-                .foregroundStyle(set.isWorkingSet ? .primary : .secondary)
-
-            if set.isWarmup { tag("warm-up") }
-            if !set.isComplete { tag("skipped") }
-
-            Spacer()
-
-            if let rpe = set.rpe {
-                Text("RPE \(rpe.formatted(.number.precision(.fractionLength(0...1))))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func tag(_ text: String) -> some View {
-        Text(text)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.secondary.opacity(0.15), in: .capsule)
+    /// Same defaults as the active workout: repeat the previous set. Added sets
+    /// start unticked, so they don't count until the user confirms them.
+    private func addSet(to workoutExercise: WorkoutExercise) {
+        let previous = workoutExercise.orderedSets.last
+        controller.addSet(
+            to: workoutExercise,
+            weightKg: previous?.weightKg,
+            addedWeightKg: previous?.addedWeightKg,
+            reps: previous?.reps ?? workoutExercise.targetRepMin ?? 8,
+            rpe: nil,
+            isWarmup: false
+        )
     }
 }
