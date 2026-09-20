@@ -40,7 +40,8 @@ struct RoutineDetailView: View {
                 .controlSize(.large)
                 .disabled(routine.orderedItems.isEmpty)
                 .padding(.horizontal, 24)
-                .padding(.vertical, 10)
+                .padding(.top, 10)
+                .padding(.bottom, 28)
         }
         .alert("A workout is already in progress", isPresented: $showActiveConflict) {
             Button("Resume it") {
