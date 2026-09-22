@@ -7,7 +7,7 @@ struct ForgeApp: App {
     @State private var workoutController: WorkoutController
 
     init() {
-        let container = PersistenceController.makeSharedContainer()
+        let container = PersistenceController.shared
         self.container = container
         // One controller for the whole app: "is a workout in progress" is
         // global state that the routine list, detail, and launch-time

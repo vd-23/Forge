@@ -12,6 +12,9 @@ import SwiftData
 enum PersistenceController {
     static let storeName = "Forge.store"
 
+    /// The one on-disk container the app and its intents share.
+    static let shared: ModelContainer = makeSharedContainer()
+
     /// The on-disk location of the store, creating the directory if needed.
     static func storeURL() throws -> URL {
         let directory = URL.applicationSupportDirectory

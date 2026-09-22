@@ -20,9 +20,11 @@ final class RestTimer {
     /// What comes after the rest — "next: set 4" — shown beside the countdown.
     private(set) var note: String?
     private let notifier: RestNotifying
+    private let presenter: RestActivityPresenting
 
-    init(notifier: RestNotifying = LocalRestNotifier()) {
+    init(notifier: RestNotifying = LocalRestNotifier(), presenter: RestActivityPresenting = NoRestActivity()) {
         self.notifier = notifier
+        self.presenter = presenter
     }
 
     var isRunning: Bool { isRunning(at: .now) }
@@ -30,9 +32,15 @@ final class RestTimer {
     func isRunning(at now: Date) -> Bool { (endsAt ?? .distantPast) > now }
 
     func start(seconds: Int, note: String? = nil, now: Date = .now) {
-        endsAt = now.addingTimeInterval(TimeInterval(seconds))
+        let wasRunning = isRunning(at: now)
+        // A countdown that ran out while nothing was ticking still owns a
+        // presenter entry; clear it so the new one doesn't stack on top.
+        if !wasRunning, endsAt != nil { presenter.dismiss() }
+        let end = now.addingTimeInterval(TimeInterval(seconds))
+        endsAt = end
         self.note = note
         notifier.schedule(after: seconds)
+        if wasRunning { presenter.update(endsAt: end, note: note) } else { presenter.show(endsAt: end, note: note) }
     }
 
     /// Called by the ticking view once the countdown reaches zero, so observers
@@ -41,18 +49,22 @@ final class RestTimer {
         guard let endsAt, endsAt <= now else { return }
         self.endsAt = nil
         note = nil
+        presenter.dismiss()
     }
 
     /// Extends or trims a running countdown. Trimming past zero just ends it.
     func addSeconds(_ delta: Int, now: Date = .now) {
-        endsAt = (endsAt ?? now).addingTimeInterval(TimeInterval(delta))
+        let end = (endsAt ?? now).addingTimeInterval(TimeInterval(delta))
+        endsAt = end
         notifier.schedule(after: remaining(at: now))
+        if end > now { presenter.update(endsAt: end, note: note) } else { presenter.dismiss() }
     }
 
     func skip() {
         endsAt = nil
         note = nil
         notifier.cancel()
+        presenter.dismiss()
     }
 
     func remaining(at now: Date = .now) -> Int {

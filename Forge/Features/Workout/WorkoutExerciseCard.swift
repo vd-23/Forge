@@ -42,6 +42,7 @@ struct WorkoutExerciseCard: View {
                 table
                 Button("Add set", systemImage: "plus", action: addSet)
                     .buttonStyle(InlineAccentButtonStyle())
+                    .disabled(!controller.canAddSet(to: workoutExercise))
                     .padding(.top, 2)
             }
         }

@@ -66,6 +66,7 @@ struct ActiveWorkoutView: View {
 
                 Button("Add exercise", systemImage: "plus") { Haptics.tap(); addingExercise = true }
                     .buttonStyle(GhostButtonStyle())
+                    .disabled(!controller.canAddExercise(to: session))
                     .padding(.top, 4)
             }
             .padding(.horizontal, 16)
@@ -104,7 +105,7 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $addingExercise) {
             NavigationStack {
-                ExercisePickerView { controller.addExercise($0, to: session) }
+                ExercisePickerView(onPick: { controller.addExercise($0, to: session) })
             }
         }
         .sheet(isPresented: $reordering) {

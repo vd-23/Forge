@@ -9,6 +9,7 @@ enum RoutineDuplication {
     @discardableResult
     static func duplicate(_ routine: Routine, into context: ModelContext) -> Routine {
         let copy = Routine(name: routine.name + " Copy")
+        copy.sortOrder = RoutineOrdering.nextSortOrder(in: context)
         context.insert(copy)
 
         for item in routine.orderedItems {

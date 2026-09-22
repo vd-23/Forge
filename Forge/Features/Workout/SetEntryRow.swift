@@ -79,7 +79,7 @@ struct SetEntryRow: View {
                 style: isCurrent ? .boxed : .plain,
                 allowsDecimals: false,
                 tint: textTint
-            ) { set.reps = Int($0) ?? 0 }
+            ) { set.reps = Limits.clampReps(Int($0) ?? 0) }
 
             rpeMenu
                 .frame(width: SetColumns.rpe, alignment: .leading)
@@ -203,8 +203,8 @@ struct SetEntryRow: View {
 
     /// An empty or unparseable field means "not entered", not zero.
     private func kilograms(from input: String) -> Double? {
-        guard let entered = NumericTextField.parse(input), entered > 0 else { return nil }
-        return WeightFormatting.kilograms(from: entered, unit: unit)
+        guard let entered = NumericTextField.parse(input) else { return nil }
+        return Limits.clampWeightKg(WeightFormatting.kilograms(from: entered, unit: unit))
     }
 
     private static func rpeLabel(_ value: Double) -> String {

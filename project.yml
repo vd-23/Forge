@@ -35,6 +35,7 @@ targets:
       - path: Forge
     dependencies:
       - package: ForgeCore
+      - target: ForgeWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.forge.gym
@@ -44,6 +45,38 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    info:
+      path: Forge/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSSupportsLiveActivities: true
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.forge.gym.backup
+            UTTypeDescription: Forge backup
+            UTTypeConformsTo: [public.json]
+            UTTypeTagSpecification:
+              public.filename-extension: [forgebackup]
+
+  ForgeWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ForgeWidgets
+      - path: Forge/Shared/RestActivityAttributes.swift
+    info:
+      path: ForgeWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Forge
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.forge.gym.widgets
+        SKIP_INSTALL: YES
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
 
   ForgeTests:
     type: bundle.unit-test

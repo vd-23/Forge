@@ -2,6 +2,8 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(WorkoutController.self) private var controller
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
 
     private enum Tab: Hashable { case progress, exercises, workout, history, settings }
 
@@ -33,6 +35,14 @@ struct RootView: View {
         .tabViewBottomAccessory(isEnabled: controller.restTimer.endsAt != nil) {
             RestTimerBar(timer: controller.restTimer, onTap: openActiveWorkout)
         }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            guard phase == .active else { return }
+            // The countdown only ticks while the bar is on screen; catch an
+            // expiry that happened in the background before the bar reappears.
+            controller.restTimer.expireIfNeeded()
+            handleShortcut()
+            ForgeShortcuts.updateAppShortcutParameters()
+        }
         .task {
             // A recent active session is a workout in progress — leave it be.
             guard let active = controller.activeSession, StaleSessionCheck.isStale(active) else { return }
@@ -45,6 +55,19 @@ struct RootView: View {
             Button("Leave it open", role: .cancel) {}
         } message: { session in
             Text("\"\(session.sourceRoutineName)\" has been running since \(session.startedAt.formatted(date: .abbreviated, time: .shortened)).")
+        }
+    }
+
+    /// A Shortcut asked for a workout. Start it, or land on the one already
+    /// running — either way the user ends up on the logging screen.
+    private func handleShortcut() {
+        guard let routineID = ShortcutLauncher.takePending() else { return }
+        switch ShortcutLauncher.start(routineID: routineID, controller: controller, context: context) {
+        case .started, .resumedExisting:
+            openActiveWorkout()
+        case .notFound:
+            Haptics.warning()
+            selectedTab = .workout
         }
     }
 
