@@ -23,6 +23,34 @@ struct Chip: View {
     }
 }
 
+/// Toggleable pill for a horizontal filter row: "All", "Chest", "Back".
+struct FilterPill: View {
+    let text: String
+    let isOn: Bool
+    let action: () -> Void
+
+    init(_ text: String, isOn: Bool, action: @escaping () -> Void) {
+        self.text = text
+        self.isOn = isOn
+        self.action = action
+    }
+
+    var body: some View {
+        Button {
+            Haptics.selection()
+            action()
+        } label: {
+            Text(text)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isOn ? .white : ForgeColor.ink2)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background(isOn ? ForgeColor.accentFill : ForgeColor.sunken, in: .capsule)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// Eyebrow + figure + a quiet sub-line: "HEAVIEST / 172 / kg × 3".
 struct StatTile: View {
     let label: String

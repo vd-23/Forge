@@ -20,8 +20,8 @@ struct SessionEditingTests {
         let controller = WorkoutController(context: ctx)
         let session = try controller.start(from: routine)
         let we = session.orderedExercises[0]
-        controller.toggleComplete(controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false))
-        controller.toggleComplete(controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false))
+        controller.toggleComplete(try #require(controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false)))
+        controller.toggleComplete(try #require(controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false)))
         controller.finish(session)
         return (controller, session, we)
     }
@@ -30,7 +30,7 @@ struct SessionEditingTests {
         let (controller, session, we) = try finishedSession()
         let endedAt = session.endedAt
 
-        let added = controller.addSet(to: we, weightKg: 110, addedWeightKg: nil, reps: 3, rpe: nil, isWarmup: false)
+        let added = try #require(controller.addSet(to: we, weightKg: 110, addedWeightKg: nil, reps: 3, rpe: nil, isWarmup: false))
         controller.toggleComplete(added)
         controller.deleteSet(we.orderedSets[0])
 
@@ -46,7 +46,7 @@ struct SessionEditingTests {
         we.orderedSets[0].weightKg = 120
         #expect(sessionVolumeKg(session.coreInput) == 1100)
 
-        let added = controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false)
+        let added = try #require(controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false))
         #expect(sessionVolumeKg(session.coreInput) == 1100, "an unticked set doesn't count yet")
         controller.toggleComplete(added)
         #expect(sessionVolumeKg(session.coreInput) == 1600)

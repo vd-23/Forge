@@ -36,10 +36,15 @@ struct HeatmapView: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
+    private var visibleLabels: [Date: String] {
+        HeatmapLabels.visible(weeks.map { ($0.id, $0.monthLabel) })
+    }
+
     private func monthLabels(cell: CGFloat) -> some View {
-        HStack(spacing: gap) {
+        let labels = visibleLabels
+        return HStack(spacing: gap) {
             ForEach(weeks) { week in
-                Text((week.monthLabel ?? "").uppercased())
+                Text((labels[week.id] ?? "").uppercased())
                     .font(.system(size: 10, weight: .bold))
                     .kerning(0.6)
                     .foregroundStyle(ForgeColor.ink3)
@@ -107,5 +112,29 @@ enum HeatPalette {
         case .heavy: "heavy session"
         case .maximal: "very heavy session"
         }
+    }
+}
+
+/// Which month labels fit above the grid. A label needs about three columns
+/// of room, so one that would run into its neighbour is dropped — a month that
+/// begins in the window's first column or two, or two short months in a row.
+enum HeatmapLabels {
+    static let minimumSpacing = 3
+
+    static func visible<ID: Hashable>(_ columns: [(id: ID, label: String?)]) -> [ID: String] {
+        let labelled = columns.enumerated().compactMap { index, column in
+            column.label.map { (index: index, id: column.id, label: $0) }
+        }
+        var result: [ID: String] = [:]
+        var lastKept: Int?
+        for (position, entry) in labelled.enumerated() {
+            if let lastKept, entry.index - lastKept < minimumSpacing { continue }
+            let next = position + 1 < labelled.count ? labelled[position + 1].index : columns.count
+            let isLast = position == labelled.count - 1
+            guard next - entry.index >= minimumSpacing || isLast else { continue }
+            result[entry.id] = entry.label
+            lastKept = entry.index
+        }
+        return result
     }
 }

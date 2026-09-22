@@ -26,15 +26,16 @@ struct ExerciseEditorView: View {
     }
 
     private var trimmedName: String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines)
+        Limits.cleanName(name) ?? ""
     }
 
     var body: some View {
         Form {
             Section {
                 TextField("Name", text: $name)
+                    .limitedLength($name)
                 Picker("Body part", selection: $bodyPart) {
-                    ForEach(BodyPart.allCases) { Text($0.displayName).tag($0) }
+                    ForEach(BodyPartCatalog().all) { Text($0.displayName).tag($0) }
                 }
             }
 
@@ -68,6 +69,7 @@ struct ExerciseEditorView: View {
     }
 
     private func save() {
+        guard !trimmedName.isEmpty else { return }
         let target: Exercise
         if let exercise {
             target = exercise

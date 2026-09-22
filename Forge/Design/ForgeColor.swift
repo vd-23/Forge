@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The palette from the design sheet. Warm-neutral greys and one blue that does
+/// The palette from the design sheet. Neutral greys and iOS system blue, which does
 /// three jobs: `accent` for graphics, `accentFill` for filled controls and
 /// ticks, `accentInk` for blue text on a surface.
 enum ForgeColor {

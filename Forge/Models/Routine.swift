@@ -8,6 +8,9 @@ final class Routine {
     var isArchived: Bool
     var createdAt: Date
     var lastPerformedAt: Date?
+    /// Position in the Workout tab grid. Added after the first stores shipped,
+    /// so it defaults to 0 and `RoutineOrdering` breaks ties by creation date.
+    var sortOrder: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \RoutineItem.routine)
     var items: [RoutineItem] = []

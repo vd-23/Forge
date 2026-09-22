@@ -11,6 +11,7 @@ struct RoutineEditorView: View {
     @State private var name: String
     @State private var draft: Routine?
     @State private var pickingExercise = false
+    @State private var editingItem: RoutineItem?
 
     init(routine: Routine?) {
         self.routine = routine
@@ -21,38 +22,30 @@ struct RoutineEditorView: View {
     private var items: [RoutineItem] { draft?.orderedItems ?? [] }
 
     private var trimmedName: String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines)
+        Limits.cleanName(name) ?? ""
     }
 
     var body: some View {
         Form {
             Section {
                 TextField("Routine name", text: $name)
+                    .limitedLength($name)
             }
 
-            Section("Exercises") {
+            Section {
                 ForEach(items) { item in
-                    NavigationLink {
-                        RoutineItemEditorView(item: item)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.exercise?.name ?? "—")
-                            if let target = RepRange.targetLabel(
-                                sets: item.targetSets,
-                                repMin: item.targetRepMin,
-                                repMax: item.targetRepMax
-                            ) {
-                                Text(target)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
+                    itemRow(item)
                 }
                 .onMove(perform: move)
                 .onDelete(perform: delete)
 
-                Button("Add exercise", systemImage: "plus") { pickingExercise = true }
+                Button("Add exercises", systemImage: "plus") { pickingExercise = true }
+            } header: {
+                Text("Exercises")
+            } footer: {
+                if !items.isEmpty {
+                    Text("Tap an exercise for rep and rest targets.")
+                }
             }
         }
         .forgeForm()
@@ -67,10 +60,53 @@ struct RoutineEditorView: View {
                 Button("Save", action: save).disabled(trimmedName.isEmpty)
             }
         }
+        .navigationDestination(item: $editingItem) { item in
+            RoutineItemEditorView(item: item)
+        }
         .sheet(isPresented: $pickingExercise) {
             NavigationStack {
-                ExercisePickerView { addExercise($0) }
+                ExercisePickerView(onPickMany: addExercises)
             }
+        }
+    }
+
+    /// Name on the left opens the target editor; the stepper on the right
+    /// sets the set count without leaving the list.
+    private func itemRow(_ item: RoutineItem) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                editingItem = item
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.exercise?.name ?? "—")
+                        .foregroundStyle(ForgeColor.ink)
+                    if let target = RepRange.targetLabel(
+                        sets: nil,
+                        repMin: item.targetRepMin,
+                        repMax: item.targetRepMax
+                    ) {
+                        Text(target)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+
+            Stepper(
+                value: Binding(
+                    get: { item.targetSets ?? RoutineEditing.defaultTargetSets },
+                    set: { Haptics.selection(); RoutineEditing.setTargetSets(item, to: $0) }
+                ),
+                in: 1...Limits.maxSetsPerExercise
+            ) {
+                Text("^[\(item.targetSets ?? RoutineEditing.defaultTargetSets) set](inflect: true)")
+                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(ForgeColor.ink2)
+            }
+            .fixedSize()
         }
     }
 
@@ -81,14 +117,14 @@ struct RoutineEditorView: View {
     private func ensureDraft() -> Routine {
         if let draft { return draft }
         let new = Routine(name: trimmedName)
+        new.sortOrder = RoutineOrdering.nextSortOrder(in: context)
         context.insert(new)
         draft = new
         return new
     }
 
-    private func addExercise(_ exercise: Exercise) {
-        let target = ensureDraft()
-        target.items.append(RoutineItem(exercise: exercise, order: target.items.count))
+    private func addExercises(_ exercises: [Exercise]) {
+        RoutineEditing.add(exercises, to: ensureDraft())
     }
 
     private func move(_ offsets: IndexSet, _ destination: Int) {
@@ -110,6 +146,7 @@ struct RoutineEditorView: View {
     }
 
     private func save() {
+        guard !trimmedName.isEmpty else { return }
         let target = ensureDraft()
         target.name = trimmedName
         try? context.save()

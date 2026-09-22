@@ -17,10 +17,19 @@ final class WorkoutController {
     /// the tab bar's accessory and survive leaving the screen.
     let restTimer: RestTimer
 
-    init(context: ModelContext, restTimer: RestTimer = RestTimer()) {
+    init(context: ModelContext, restTimer: RestTimer? = nil) {
         self.context = context
-        self.restTimer = restTimer
         self.activeSession = Self.fetchActiveSession(in: context)
+        // `self` isn't usable until every property is set, so the closure
+        // captures a box the controller fills in afterwards.
+        let nameBox = NameBox()
+        self.restTimer = restTimer ?? RestTimer(presenter: LiveRestActivity(routineName: { nameBox.name }))
+        nameBox.read = { [weak self] in self?.activeSession?.sourceRoutineName ?? "Workout" }
+    }
+
+    private final class NameBox {
+        var read: () -> String = { "Workout" }
+        var name: String { read() }
     }
 
     var hasActiveSession: Bool { activeSession != nil }
@@ -101,7 +110,7 @@ final class WorkoutController {
             excludingSession: session.id,
             in: context
         )
-        let count = workoutExercise.targetSets ?? last.count
+        let count = min(workoutExercise.targetSets ?? last.count, Limits.maxSetsPerExercise)
         guard count > 0 else { return }
 
         for index in 0..<count {
@@ -117,7 +126,16 @@ final class WorkoutController {
 
     // MARK: Editing
 
+    func canAddExercise(to session: WorkoutSession) -> Bool {
+        session.exercises.count < Limits.maxExercisesPerWorkout
+    }
+
+    func canAddSet(to workoutExercise: WorkoutExercise) -> Bool {
+        workoutExercise.sets.count < Limits.maxSetsPerExercise
+    }
+
     func addExercise(_ exercise: Exercise, to session: WorkoutSession) {
+        guard canAddExercise(to: session) else { return }
         let order = (session.orderedExercises.last?.order ?? -1) + 1
         session.exercises.append(WorkoutExercise(
             exercise: exercise,
@@ -179,6 +197,7 @@ final class WorkoutController {
         save()
     }
 
+    /// Returns the set, or `nil` when the exercise is already at the cap.
     @discardableResult
     func addSet(
         to workoutExercise: WorkoutExercise,
@@ -187,14 +206,15 @@ final class WorkoutController {
         reps: Int,
         rpe: Double?,
         isWarmup: Bool
-    ) -> ExerciseSet {
+    ) -> ExerciseSet? {
+        guard canAddSet(to: workoutExercise) else { return nil }
         let order = (workoutExercise.orderedSets.last?.order ?? -1) + 1
         let set = ExerciseSet(
             order: order,
-            weightKg: weightKg,
-            addedWeightKg: addedWeightKg,
-            reps: reps,
-            rpe: rpe,
+            weightKg: weightKg.flatMap(Limits.clampWeightKg),
+            addedWeightKg: addedWeightKg.flatMap(Limits.clampWeightKg),
+            reps: Limits.clampReps(reps),
+            rpe: rpe.map { min(max($0, 0), Limits.maxRPE) },
             isWarmup: isWarmup
         )
         workoutExercise.sets.append(set)

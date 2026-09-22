@@ -6,6 +6,8 @@ struct SettingsView: View {
     @AppStorage(Preferences.Key.defaultRestSeconds, store: Preferences.defaults)
     private var restSeconds: Int = Preferences.fallbackRestSeconds
 
+    @State private var storage = StoreHealth(bytes: 0)
+
     var body: some View {
         NavigationStack {
             Form {
@@ -24,7 +26,19 @@ struct SettingsView: View {
                     SectionLabel("Rest timer").textCase(nil)
                 }
                 Section {
+                    NavigationLink("Body parts") { BodyPartsView() }
+                    NavigationLink("Backup and restore") { DataView() }
+                } header: {
+                    SectionLabel("Library and data").textCase(nil)
+                }
+                Section {
                     LabeledContent("Version", value: "0.1.0")
+                    LabeledContent("Storage used", value: storage.label)
+                    if storage.isOverBudget {
+                        Label("Larger than expected — export a backup and consider deleting old workouts.", systemImage: "exclamationmark.triangle")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
                 } header: {
                     SectionLabel("About").textCase(nil)
                 } footer: {
@@ -35,6 +49,11 @@ struct SettingsView: View {
             }
             .forgeForm()
             .navigationTitle("Settings")
+            .task {
+                if let url = try? PersistenceController.storeURL() {
+                    storage = StoreHealth.measure(storeURL: url)
+                }
+            }
         }
     }
 }

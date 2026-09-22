@@ -7,21 +7,16 @@ struct RoutineListView: View {
 
     /// Both scopes come from one query and are split in Swift: `@Query`'s
     /// predicate is fixed at declaration, and a personal library is small.
-    @Query(sort: \Routine.name) private var allRoutines: [Routine]
-
-    @Query(filter: #Predicate<WorkoutSession> { $0.endedAt != nil }, sort: \WorkoutSession.startedAt, order: .reverse)
-    private var finishedSessions: [WorkoutSession]
-
-    @AppStorage(Preferences.Key.weightUnit, store: Preferences.defaults)
-    private var unit: WeightUnit = .kg
+    @Query private var allRoutines: [Routine]
 
     @State private var scope: ArchiveScope = .active
     @State private var editingRoutine: Routine?
     @State private var creatingRoutine = false
+    @State private var reordering = false
     @Binding var path: [RoutineDestination]
 
     private var routines: [Routine] {
-        allRoutines.filter { $0.isArchived == scope.isArchived }
+        RoutineOrdering.ordered(allRoutines.filter { $0.isArchived == scope.isArchived })
     }
 
     private var hasArchived: Bool {
@@ -43,6 +38,11 @@ struct RoutineListView: View {
                 if hasArchived {
                     ToolbarItem(placement: .topBarLeading) { scopeMenu }
                 }
+                if routines.count > 1, !scope.isArchived {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Reorder", systemImage: "arrow.up.arrow.down") { reordering = true }
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button("New Routine", systemImage: "plus") { creatingRoutine = true }
                 }
@@ -61,76 +61,70 @@ struct RoutineListView: View {
             .sheet(isPresented: $creatingRoutine) {
                 NavigationStack { RoutineEditorView(routine: nil) }
             }
+            .sheet(isPresented: $reordering) {
+                NavigationStack { RoutineReorderView(routines: routines) }
+                    .presentationDetents([.medium, .large])
+            }
         }
     }
 
-    // MARK: List
+    // MARK: Grid
+
+    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     private var list: some View {
-        List {
-            if let active = controller.activeSession {
-                ResumeBanner(session: active) {
-                    path.append(.activeWorkout(active))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if let active = controller.activeSession {
+                    ResumeBanner(session: active) {
+                        path.append(.activeWorkout(active))
+                    }
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 10, trailing: 16))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
 
-            Section {
-                ForEach(routines) { routine in
-                    row(routine)
-                        .card(padding: 16)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                SectionLabel(scope.isArchived ? "Archived routines" : "Routines")
+                    .padding(.leading, 2)
+                    .padding(.top, controller.activeSession == nil ? 0 : 6)
+
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(routines) { routine in
+                        tile(routine)
+                    }
                 }
 
                 if !scope.isArchived {
                     Button("New routine", systemImage: "plus") { creatingRoutine = true }
                         .buttonStyle(GhostButtonStyle())
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                        .padding(.top, 4)
 
-                    Label("Tap a row for detail · swipe for edit, duplicate, delete", systemImage: "info.circle")
+                    Label("Tap a tile for detail · hold for edit, duplicate, delete", systemImage: "info.circle")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(ForgeColor.ink3)
-                        .listRowInsets(EdgeInsets(top: 2, leading: 18, bottom: 8, trailing: 16))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                        .padding(.leading, 2)
                 }
-            } header: {
-                SectionLabel(scope.isArchived ? "Archived routines" : "Routines")
-                    .textCase(nil)
-                    .padding(.leading, -2)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 24)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .environment(\.defaultMinListHeaderHeight, 0)
     }
 
-    // MARK: Rows
+    // MARK: Tiles
 
     @ViewBuilder
-    private func row(_ routine: Routine) -> some View {
-        let last = finishedSessions.first { $0.sourceRoutine?.id == routine.id }
+    private func tile(_ routine: Routine) -> some View {
         if scope.isArchived {
-            RoutineRow(routine: routine, lastSession: last, isArchived: true, unit: unit, onStart: nil)
-                .swipeActions(edge: .trailing) {
-                    Button("Delete", systemImage: "trash", role: .destructive) {
-                        deleteOrArchive(routine)
-                    }
-                    .tint(.red)
+            RoutineCard(routine: routine, isArchived: true, onStart: nil)
+                .contextMenu {
                     Button("Unarchive", systemImage: "arrow.uturn.backward") {
                         routine.isArchived = false
                         try? context.save()
                     }
-                    .tint(.green)
+                    Button("Delete", systemImage: "trash", role: .destructive) {
+                        deleteOrArchive(routine)
+                    }
                 }
         } else {
-            RoutineRow(routine: routine, lastSession: last, unit: unit) {
+            RoutineCard(routine: routine) {
                 path.append(.detail(routine, autoStart: true))
             }
             .contentShape(.rect)
@@ -138,20 +132,17 @@ struct RoutineListView: View {
                 Haptics.tap()
                 path.append(.detail(routine, autoStart: false))
             }
-            .swipeActions(edge: .trailing) {
-                Button("Delete", systemImage: "trash", role: .destructive) {
-                    deleteOrArchive(routine)
-                }
-                .tint(.red)
+            .contextMenu {
+                Button("Edit", systemImage: "pencil") { editingRoutine = routine }
                 Button("Duplicate", systemImage: "plus.square.on.square") {
                     RoutineDuplication.duplicate(routine, into: context)
                     try? context.save()
                 }
-                .tint(.indigo)
-                Button("Edit", systemImage: "pencil") {
-                    editingRoutine = routine
+                Button("Reorder", systemImage: "arrow.up.arrow.down") { reordering = true }
+                Divider()
+                Button("Delete", systemImage: "trash", role: .destructive) {
+                    deleteOrArchive(routine)
                 }
-                .tint(.gray)
             }
         }
     }

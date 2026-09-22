@@ -10,13 +10,20 @@ struct ExerciseLibraryView: View {
 
     @State private var scope: ArchiveScope = .active
     @State private var search = ""
+    @State private var bodyPart: BodyPart?
     @State private var creating = false
     @State private var deleteError: String?
 
+    private var inScope: [Exercise] {
+        allExercises.filter { $0.isArchived == scope.isArchived }
+    }
+
     private var filtered: [Exercise] {
-        let inScope = allExercises.filter { $0.isArchived == scope.isArchived }
-        guard !search.isEmpty else { return inScope }
-        return inScope.filter { $0.name.localizedCaseInsensitiveContains(search) }
+        ExerciseFiltering.filter(inScope, search: search, bodyPart: bodyPart)
+    }
+
+    private var pills: [BodyPart] {
+        ExerciseFiltering.bodyParts(in: inScope)
     }
 
     private var grouped: [(bodyPart: BodyPart, items: [Exercise])] {
@@ -32,6 +39,12 @@ struct ExerciseLibraryView: View {
     var body: some View {
         NavigationStack {
             List {
+                if pills.count > 1 {
+                    pillRow
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
                 ForEach(grouped, id: \.bodyPart) { group in
                     Section {
                         ForEach(group.items) { exercise in
@@ -49,6 +62,9 @@ struct ExerciseLibraryView: View {
             .forgeBackground()
             .navigationTitle("Exercises")
             .searchable(text: $search)
+            .onChange(of: pills) { _, current in
+                if let bodyPart, !current.contains(bodyPart) { self.bodyPart = nil }
+            }
             .overlay {
                 if filtered.isEmpty { emptyState }
             }
@@ -74,6 +90,24 @@ struct ExerciseLibraryView: View {
             } message: {
                 Text(deleteError ?? "")
             }
+        }
+    }
+
+    // MARK: Pills
+
+    private var pillRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                FilterPill("All", isOn: bodyPart == nil) { bodyPart = nil }
+                ForEach(pills) { part in
+                    FilterPill(part.displayName, isOn: bodyPart == part) {
+                        bodyPart = bodyPart == part ? nil : part
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 2)
+            .padding(.bottom, 6)
         }
     }
 

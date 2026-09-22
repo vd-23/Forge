@@ -35,7 +35,7 @@ final class Exercise {
     }
 
     var primaryBodyPart: BodyPart {
-        get { BodyPart(rawValue: primaryBodyPartRaw) ?? .other }
+        get { BodyPart(rawValue: primaryBodyPartRaw) }
         set { primaryBodyPartRaw = newValue.rawValue }
     }
 }

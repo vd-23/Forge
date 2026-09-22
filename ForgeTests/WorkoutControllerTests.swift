@@ -63,8 +63,8 @@ struct WorkoutControllerTests {
 
         // The routine plans 3 squat sets, so those already exist.
         let planned = we.orderedSets.count
-        let first = controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false)
-        let second = controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: 8, isWarmup: false)
+        let first = try #require(controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false))
+        let second = try #require(controller.addSet(to: we, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: 8, isWarmup: false))
 
         #expect(planned == 3)
         #expect(first.order == 3)
@@ -98,8 +98,8 @@ struct WorkoutControllerTests {
         let (routine, _, _) = makeRoutine()
         let controller = WorkoutController(context: ctx)
         let session = try controller.start(from: routine)
-        let set = controller.addSet(to: session.orderedExercises[0], weightKg: 60, addedWeightKg: nil,
-                                    reps: 10, rpe: nil, isWarmup: false)
+        let set = try #require(controller.addSet(to: session.orderedExercises[0], weightKg: 60, addedWeightKg: nil,
+                                    reps: 10, rpe: nil, isWarmup: false))
 
         controller.toggleComplete(set)
         #expect(set.isComplete)
@@ -128,8 +128,8 @@ struct WorkoutControllerTests {
         let (routine, _, _) = makeRoutine()
         let controller = WorkoutController(context: ctx)
         let session = try controller.start(from: routine)
-        let set = controller.addSet(to: session.orderedExercises[0], weightKg: 100, addedWeightKg: nil,
-                                    reps: 5, rpe: nil, isWarmup: false)
+        let set = try #require(controller.addSet(to: session.orderedExercises[0], weightKg: 100, addedWeightKg: nil,
+                                    reps: 5, rpe: nil, isWarmup: false))
         controller.toggleComplete(set)
 
         let summary = try #require(controller.finish(session))
@@ -145,8 +145,8 @@ struct WorkoutControllerTests {
         let (routine, _, _) = makeRoutine()
         let controller = WorkoutController(context: ctx)
         let session = try controller.start(from: routine)
-        let set = controller.addSet(to: session.orderedExercises[0], weightKg: 100, addedWeightKg: nil,
-                                    reps: 5, rpe: nil, isWarmup: false)
+        let set = try #require(controller.addSet(to: session.orderedExercises[0], weightKg: 100, addedWeightKg: nil,
+                                    reps: 5, rpe: nil, isWarmup: false))
         controller.toggleComplete(set)
 
         let summary = try #require(controller.finish(session))
@@ -174,7 +174,7 @@ struct WorkoutControllerTests {
         let session = try controller.start(from: routine)
         let squat = session.orderedExercises[0]
 
-        let done = controller.addSet(to: squat, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false)
+        let done = try #require(controller.addSet(to: squat, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false))
         controller.addSet(to: squat, weightKg: 100, addedWeightKg: nil, reps: 5, rpe: nil, isWarmup: false)
         controller.toggleComplete(done)
 
@@ -188,8 +188,8 @@ struct WorkoutControllerTests {
         let (routine, _, _) = makeRoutine()
         let controller = WorkoutController(context: ctx)
         let session = try controller.start(from: routine)
-        let set = controller.addSet(to: session.orderedExercises[0], weightKg: 100, addedWeightKg: nil,
-                                    reps: 5, rpe: nil, isWarmup: false)
+        let set = try #require(controller.addSet(to: session.orderedExercises[0], weightKg: 100, addedWeightKg: nil,
+                                    reps: 5, rpe: nil, isWarmup: false))
         controller.toggleComplete(set)
 
         controller.finish(session)
@@ -215,8 +215,8 @@ struct WorkoutControllerTests {
         let (routine, _, _) = makeRoutine()
         let controller = WorkoutController(context: ctx)
         let session = try controller.start(from: routine)
-        let warmup = controller.addSet(to: session.orderedExercises[0], weightKg: 40, addedWeightKg: nil,
-                                       reps: 10, rpe: nil, isWarmup: true)
+        let warmup = try #require(controller.addSet(to: session.orderedExercises[0], weightKg: 40, addedWeightKg: nil,
+                                       reps: 10, rpe: nil, isWarmup: true))
         controller.toggleComplete(warmup)
 
         let summary = try #require(controller.finish(session))
