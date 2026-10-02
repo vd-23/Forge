@@ -14,6 +14,7 @@ struct RoutineItemEditorView: View {
     @State private var repMax: Int
     @State private var restEnabled: Bool
     @State private var rest: Int
+    @State private var note: String
 
     init(item: RoutineItem) {
         self.item = item
@@ -24,10 +25,20 @@ struct RoutineItemEditorView: View {
         _repMax = State(initialValue: item.targetRepMax ?? 12)
         _restEnabled = State(initialValue: item.targetRestSeconds != nil)
         _rest = State(initialValue: item.targetRestSeconds ?? 120)
+        _note = State(initialValue: item.note ?? "")
     }
 
     var body: some View {
         Form {
+            Section {
+                TextField("e.g. EZ bar attachment", text: $note, axis: .vertical)
+                    .limitedLength($note, max: Limits.maxExerciseNoteLength)
+            } header: {
+                Text("Note")
+            } footer: {
+                Text("Shown on this exercise every workout.")
+            }
+
             Section("Target sets") {
                 Toggle("Set a target", isOn: $setsEnabled)
                 if setsEnabled {
@@ -70,6 +81,7 @@ struct RoutineItemEditorView: View {
         item.targetRepMin = repsEnabled ? repMin : nil
         item.targetRepMax = repsEnabled ? repMax : nil
         item.targetRestSeconds = restEnabled ? rest : nil
+        item.note = Limits.cleanName(note, max: Limits.maxExerciseNoteLength)
         try? context.save()
     }
 }

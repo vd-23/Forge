@@ -14,14 +14,16 @@ enum RoutineDuplication {
 
         for item in routine.orderedItems {
             guard let exercise = item.exercise else { continue }
-            copy.items.append(RoutineItem(
+            let copied = RoutineItem(
                 exercise: exercise,
                 order: item.order,
                 targetSets: item.targetSets,
                 targetRepMin: item.targetRepMin,
                 targetRepMax: item.targetRepMax,
                 targetRestSeconds: item.targetRestSeconds
-            ))
+            )
+            copied.note = item.note
+            copy.items.append(copied)
         }
         return copy
     }

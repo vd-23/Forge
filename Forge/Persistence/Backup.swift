@@ -47,6 +47,7 @@ struct ForgeBackup: Codable {
         var targetRepMin: Int?
         var targetRepMax: Int?
         var targetRestSeconds: Int?
+        var note: String?
     }
 
     struct SessionRecord: Codable {
@@ -66,6 +67,7 @@ struct ForgeBackup: Codable {
         var targetRepMin: Int?
         var targetRepMax: Int?
         var restSeconds: Int?
+        var note: String?
         var sets: [SetRecord]
     }
 
@@ -127,7 +129,7 @@ enum BackupCoder {
                           guard let exercise = item.exercise else { return nil }
                           return .init(exerciseID: exercise.id, order: item.order, targetSets: item.targetSets,
                                        targetRepMin: item.targetRepMin, targetRepMax: item.targetRepMax,
-                                       targetRestSeconds: item.targetRestSeconds)
+                                       targetRestSeconds: item.targetRestSeconds, note: item.note)
                       })
             },
             sessions: sessions.map { s in
@@ -136,6 +138,7 @@ enum BackupCoder {
                       exercises: s.orderedExercises.map { we in
                           .init(exerciseID: we.exerciseID, order: we.order, targetSets: we.targetSets,
                                 targetRepMin: we.targetRepMin, targetRepMax: we.targetRepMax, restSeconds: we.restSeconds,
+                                note: we.note,
                                 sets: we.orderedSets.map { set in
                                     .init(order: set.order, weightKg: set.weightKg, addedWeightKg: set.addedWeightKg,
                                           reps: set.reps, rpe: set.rpe, isWarmup: set.isWarmup,
@@ -199,11 +202,13 @@ enum BackupCoder {
             context.insert(routine)
             for item in record.items {
                 guard let exercise = exercisesByID[item.exerciseID] else { continue }
-                routine.items.append(RoutineItem(
+                let routineItem = RoutineItem(
                     exercise: exercise, order: item.order, targetSets: item.targetSets,
                     targetRepMin: item.targetRepMin, targetRepMax: item.targetRepMax,
                     targetRestSeconds: item.targetRestSeconds
-                ))
+                )
+                routineItem.note = item.note
+                routine.items.append(routineItem)
             }
             routinesByID[record.id] = routine
         }
@@ -225,6 +230,7 @@ enum BackupCoder {
                     targetSets: we.targetSets, targetRepMin: we.targetRepMin, targetRepMax: we.targetRepMax,
                     restSeconds: we.restSeconds
                 )
+                workoutExercise.note = we.note
                 for set in we.sets {
                     let exerciseSet = ExerciseSet(
                         order: set.order, weightKg: set.weightKg, addedWeightKg: set.addedWeightKg,

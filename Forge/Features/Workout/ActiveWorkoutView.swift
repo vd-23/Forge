@@ -11,7 +11,9 @@ struct ActiveWorkoutView: View {
     let controller: WorkoutController
 
     @State private var addingExercise = false
-    @State private var reordering = false
+    @State private var editingExercise: Exercise?
+    @State private var notingExercise: WorkoutExercise?
+    @State private var noteDraft = ""
     @State private var confirmFinish = false
     @State private var confirmDiscard = false
     @State private var pendingRemoval: WorkoutExercise?
@@ -39,39 +41,61 @@ struct ActiveWorkoutView: View {
         return next?.persistentModelID
     }
 
+    /// A `List` rather than a scroll view so cards get native drag-to-reorder
+    /// (press and hold, then drag) and swipe actions.
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                progressHeader
-                ForEach(Array(exercises.enumerated()), id: \.element.persistentModelID) { index, workoutExercise in
-                    let isExpanded = workoutExercise.persistentModelID == resolvedExpandedID
-                    WorkoutExerciseCard(
-                        workoutExercise: workoutExercise,
-                        sessionID: session.id,
-                        controller: controller,
-                        unit: unit,
-                        isExpanded: isExpanded,
-                        onToggleExpanded: {
-                            withAnimation(.snappy) {
-                                expandedID = isExpanded ? nil : workoutExercise.persistentModelID
-                            }
-                        },
-                        onSetCompleted: startRest(after:set:),
-                        onMove: { delta in move(workoutExercise, by: delta) },
-                        onRemove: { pendingRemoval = workoutExercise },
-                        canMoveUp: index > 0,
-                        canMoveDown: index < exercises.count - 1
-                    )
-                }
+        List {
+            progressHeader
+                .workoutRow(top: 8, bottom: 4)
+                .moveDisabled(true)
 
-                Button("Add exercise", systemImage: "plus") { Haptics.tap(); addingExercise = true }
-                    .buttonStyle(GhostButtonStyle())
-                    .disabled(!controller.canAddExercise(to: session))
-                    .padding(.top, 4)
+            ForEach(exercises, id: \.persistentModelID) { workoutExercise in
+                let isExpanded = workoutExercise.persistentModelID == resolvedExpandedID
+                WorkoutExerciseCard(
+                    workoutExercise: workoutExercise,
+                    sessionID: session.id,
+                    controller: controller,
+                    unit: unit,
+                    isExpanded: isExpanded,
+                    onToggleExpanded: {
+                        withAnimation(.snappy) {
+                            expandedID = isExpanded ? nil : workoutExercise.persistentModelID
+                        }
+                    },
+                    onSetCompleted: startRest(after:set:),
+                    onEditNote: { editNote(workoutExercise) }
+                )
+                .workoutRow(top: 6, bottom: 6)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button("Remove", systemImage: "trash", role: .destructive) {
+                        Haptics.heavy()
+                        pendingRemoval = workoutExercise
+                    }
+                    .tint(.red)
+                    Button("Edit", systemImage: "pencil") {
+                        Haptics.tap()
+                        editingExercise = workoutExercise.exercise
+                    }
+                    .tint(.gray)
+                }
+                .swipeActions(edge: .leading) {
+                    Button("Note", systemImage: "note.text") { editNote(workoutExercise) }
+                        .tint(ForgeColor.accentFill)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .onMove { source, destination in
+                Haptics.selection()
+                controller.moveExercises(in: session, from: source, to: destination)
+            }
+
+            Button("Add exercise", systemImage: "plus") { Haptics.tap(); addingExercise = true }
+                .buttonStyle(GhostButtonStyle())
+                .disabled(!controller.canAddExercise(to: session))
+                .workoutRow(top: 10, bottom: 16)
+                .moveDisabled(true)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .numericKeyboardDoneButton()
         .forgeBackground()
@@ -93,7 +117,6 @@ struct ActiveWorkoutView: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
                     Button("Add exercise", systemImage: "plus") { Haptics.tap(); addingExercise = true }
-                    Button("Reorder exercises", systemImage: "arrow.up.arrow.down") { Haptics.tap(); reordering = true }
                     Button("Discard workout", role: .destructive) { Haptics.warning(); confirmDiscard = true }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -108,11 +131,24 @@ struct ActiveWorkoutView: View {
                 ExercisePickerView(onPick: { controller.addExercise($0, to: session) })
             }
         }
-        .sheet(isPresented: $reordering) {
-            NavigationStack {
-                WorkoutReorderView(session: session, controller: controller)
+        .sheet(item: $editingExercise) { exercise in
+            NavigationStack { ExerciseEditorView(exercise: exercise) }
+        }
+        .alert(
+            notingExercise?.exercise?.name ?? "Note",
+            isPresented: Binding(get: { notingExercise != nil }, set: { if !$0 { notingExercise = nil } })
+        ) {
+            TextField("e.g. EZ bar attachment", text: $noteDraft)
+            Button("Save") {
+                if let notingExercise { controller.setNote(noteDraft, for: notingExercise) }
+                Haptics.success()
+                notingExercise = nil
             }
-            .presentationDetents([.medium, .large])
+            Button("Cancel", role: .cancel) { notingExercise = nil }
+        } message: {
+            Text(session.sourceRoutine == nil
+                 ? "Shown on this exercise during the workout."
+                 : "Saved to \(session.sourceRoutineName) and shown every time you do it.")
         }
         .sheet(item: $summary) { summary in
             WorkoutSummaryView(
@@ -191,13 +227,10 @@ struct ActiveWorkoutView: View {
 
     // MARK: Actions
 
-    private func move(_ workoutExercise: WorkoutExercise, by delta: Int) {
-        guard let index = exercises.firstIndex(where: { $0 === workoutExercise }) else { return }
-        let target = index + delta
-        guard exercises.indices.contains(target) else { return }
-        withAnimation(.snappy) {
-            controller.moveExercises(in: session, from: IndexSet(integer: index), to: delta > 0 ? target + 1 : target)
-        }
+    private func editNote(_ workoutExercise: WorkoutExercise) {
+        Haptics.tap()
+        noteDraft = workoutExercise.note ?? ""
+        notingExercise = workoutExercise
     }
 
     private func startRest(after workoutExercise: WorkoutExercise, set: ExerciseSet) {
@@ -233,5 +266,14 @@ struct ActiveWorkoutView: View {
             Haptics.warning()
             dismiss()
         }
+    }
+}
+
+private extension View {
+    /// A full-width list row with no chrome, so cards sit on the background.
+    func workoutRow(top: CGFloat, bottom: CGFloat) -> some View {
+        listRowInsets(EdgeInsets(top: top, leading: 16, bottom: bottom, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
     }
 }

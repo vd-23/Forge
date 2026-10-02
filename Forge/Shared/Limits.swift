@@ -7,6 +7,7 @@ import SwiftUI
 enum Limits {
     static let maxNameLength = 60
     static let maxNotesLength = 2_000
+    static let maxExerciseNoteLength = 200
     static let maxWeightKg: Double = 1_000
     static let maxReps = 500
     static let maxRPE: Double = 10

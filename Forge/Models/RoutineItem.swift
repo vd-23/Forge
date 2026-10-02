@@ -10,6 +10,8 @@ final class RoutineItem {
     var targetRepMin: Int?
     var targetRepMax: Int?
     var targetRestSeconds: Int?
+    /// A reminder shown on the exercise every workout: "EZ bar attachment".
+    var note: String?
 
     init(
         exercise: Exercise,

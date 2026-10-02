@@ -12,6 +12,8 @@ final class WorkoutExercise {
     var targetRepMin: Int?
     var targetRepMax: Int?
     var restSeconds: Int?
+    /// Copied from the routine item at start; edits go back to the routine.
+    var note: String?
 
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.workoutExercise)
     var sets: [ExerciseSet] = []
