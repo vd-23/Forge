@@ -8,10 +8,8 @@ struct RoutineCard: View {
     /// `nil` for an archived routine — it has to be restored before it can run.
     let onStart: (() -> Void)?
 
-    private static let previewCount = 4
-
-    private var exerciseNames: [String] {
-        routine.orderedItems.compactMap { $0.exercise?.name }
+    private var items: [RoutineItem] {
+        routine.orderedItems.filter { $0.exercise != nil }
     }
 
     var body: some View {
@@ -35,19 +33,25 @@ struct RoutineCard: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 3) {
-                if exerciseNames.isEmpty {
+            // Every exercise, not a preview: the grid doubles as a shareable
+            // overview of the whole programme.
+            VStack(alignment: .leading, spacing: 4) {
+                if items.isEmpty {
                     Text("No exercises yet")
                         .foregroundStyle(ForgeColor.ink3)
                 }
-                ForEach(exerciseNames.prefix(Self.previewCount), id: \.self) { name in
-                    Text(name)
-                        .foregroundStyle(ForgeColor.ink2)
-                        .lineLimit(1)
-                }
-                if exerciseNames.count > Self.previewCount {
-                    Text("+\(exerciseNames.count - Self.previewCount) more")
-                        .foregroundStyle(ForgeColor.ink3)
+                ForEach(items) { item in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(item.exercise?.name ?? "")
+                            .foregroundStyle(ForgeColor.ink2)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if let sets = item.targetSets {
+                            Text("\(sets)×")
+                                .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                                .foregroundStyle(ForgeColor.ink3)
+                        }
+                    }
                 }
             }
             .font(.system(size: 13, weight: .medium))

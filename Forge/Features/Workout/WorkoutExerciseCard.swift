@@ -16,12 +16,9 @@ struct WorkoutExerciseCard: View {
     var highlightsCurrent: Bool = true
     var onToggleExpanded: (() -> Void)? = nil
     var onSetCompleted: ((WorkoutExercise, ExerciseSet) -> Void)? = nil
-    /// Move up / move down / remove, offered from a long-press on the card.
-    /// `nil` on a finished session, where the exercise list is a record.
-    var onMove: ((Int) -> Void)? = nil
-    var onRemove: (() -> Void)? = nil
-    var canMoveUp: Bool = false
-    var canMoveDown: Bool = false
+    /// Opens the note editor. `nil` on a finished session, where the note is
+    /// shown but not editable.
+    var onEditNote: (() -> Void)? = nil
 
     /// Resolved once on appear rather than in `body`: it runs a fetch.
     @State private var lastSets: [ExerciseSet] = []
@@ -37,34 +34,24 @@ struct WorkoutExerciseCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
+            noteLine
             if isExpanded {
                 if highlightsCurrent { toBeat }
                 table
-                Button("Add set", systemImage: "plus", action: addSet)
-                    .buttonStyle(InlineAccentButtonStyle())
-                    .disabled(!controller.canAddSet(to: workoutExercise))
-                    .padding(.top, 2)
+                HStack {
+                    Button("Add set", systemImage: "plus", action: addSet)
+                        .buttonStyle(InlineAccentButtonStyle())
+                        .disabled(!controller.canAddSet(to: workoutExercise))
+                    Spacer()
+                    if let onEditNote, workoutExercise.note == nil {
+                        Button("Add note", systemImage: "note.text") { Haptics.tap(); onEditNote() }
+                            .buttonStyle(InlineAccentButtonStyle())
+                    }
+                }
+                .padding(.top, 2)
             }
         }
         .card(padding: 16)
-        .contextMenu {
-            if onMove != nil || onRemove != nil {
-                if let onMove {
-                    if canMoveUp {
-                        Button("Move up", systemImage: "arrow.up") { Haptics.tap(); onMove(-1) }
-                    }
-                    if canMoveDown {
-                        Button("Move down", systemImage: "arrow.down") { Haptics.tap(); onMove(1) }
-                    }
-                }
-                if let onRemove {
-                    Button("Remove exercise", systemImage: "trash", role: .destructive) {
-                        Haptics.heavy()
-                        onRemove()
-                    }
-                }
-            }
-        }
         .task(id: unit) { loadLastPerformance() }
     }
 
@@ -73,8 +60,11 @@ struct WorkoutExerciseCard: View {
     @ViewBuilder
     private var header: some View {
         if let onToggleExpanded {
-            Button { Haptics.tap(); onToggleExpanded() } label: { headerContent }
-                .buttonStyle(.plain)
+            // A tap gesture, not a Button: a Button claims the touch and keeps
+            // the list row's swipe actions from ever starting.
+            headerContent
+                .onTapGesture { Haptics.tap(); onToggleExpanded() }
+                .accessibilityAddTraits(.isButton)
         } else {
             headerContent
         }
@@ -136,6 +126,28 @@ struct WorkoutExerciseCard: View {
         }
         let last = LastPerformance.summary(of: lastSets, isBodyweight: isBodyweight, unit: unit)
         return [target, last.map { "last \($0)" }].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    // MARK: Note
+
+    @ViewBuilder
+    private var noteLine: some View {
+        if let note = workoutExercise.note {
+            let label = Label(note, systemImage: "note.text")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(ForgeColor.ink2)
+                .multilineTextAlignment(.leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ForgeColor.sunken, in: .rect(cornerRadius: 10))
+            if let onEditNote {
+                Button { Haptics.tap(); onEditNote() } label: { label }
+                    .buttonStyle(.plain)
+            } else {
+                label
+            }
+        }
     }
 
     // MARK: To beat

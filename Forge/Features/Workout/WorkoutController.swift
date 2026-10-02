@@ -61,6 +61,7 @@ final class WorkoutController {
                 targetRepMax: item.targetRepMax,
                 restSeconds: item.targetRestSeconds ?? exercise.defaultRestSeconds
             )
+            workoutExercise.note = item.note
             session.exercises.append(workoutExercise)
             prefillSets(for: workoutExercise, in: session)
         }
@@ -158,6 +159,19 @@ final class WorkoutController {
         save()
     }
 
+    /// Sets the exercise's note for this workout and, when the exercise is part
+    /// of the routine the workout came from, on that routine too — so it shows
+    /// up next time. Blank clears it.
+    func setNote(_ raw: String, for workoutExercise: WorkoutExercise) {
+        let note = Limits.cleanName(raw, max: Limits.maxExerciseNoteLength)
+        workoutExercise.note = note
+        if let routine = workoutExercise.session?.sourceRoutine,
+           let item = routine.items.first(where: { $0.exercise?.id == workoutExercise.exerciseID }) {
+            item.note = note
+        }
+        save()
+    }
+
     /// Drops an exercise from the session along with anything logged in it.
     func removeExercise(_ workoutExercise: WorkoutExercise) {
         let survivors = workoutExercise.session?.orderedExercises.filter { $0 !== workoutExercise } ?? []
@@ -187,6 +201,7 @@ final class WorkoutController {
                     targetRepMax: planned.targetRepMax,
                     targetRestSeconds: planned.restSeconds
                 )
+                item.note = planned.note
                 routine.items.append(item)
                 kept.append(item)
             }

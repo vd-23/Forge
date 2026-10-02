@@ -89,6 +89,12 @@ struct RoutineEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if let note = item.note {
+                        Label(note, systemImage: "note.text")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(.rect)

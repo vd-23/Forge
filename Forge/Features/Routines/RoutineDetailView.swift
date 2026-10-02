@@ -116,6 +116,11 @@ struct RoutineDetailView: View {
                                     .font(ForgeType.meta)
                                     .foregroundStyle(ForgeColor.ink3)
                             }
+                            if let note = item.note {
+                                Label(note, systemImage: "note.text")
+                                    .font(ForgeType.meta)
+                                    .foregroundStyle(ForgeColor.ink2)
+                            }
                         }
                         Spacer()
                         if item.exercise?.isBodyweight == true { Chip("BW") }

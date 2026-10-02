@@ -11,6 +11,7 @@ enum RoutineSync {
         let targetRepMin: Int?
         let targetRepMax: Int?
         let restSeconds: Int?
+        var note: String? = nil
     }
 
     struct Diff: Equatable {
@@ -38,7 +39,8 @@ enum RoutineSync {
                 targetSets: workoutExercise.targetSets,
                 targetRepMin: workoutExercise.targetRepMin,
                 targetRepMax: workoutExercise.targetRepMax,
-                restSeconds: workoutExercise.restSeconds
+                restSeconds: workoutExercise.restSeconds,
+                note: workoutExercise.note
             )
         }
     }
