@@ -40,3 +40,4 @@ Secrets.plist
 
 # Local signing team
 Config/Signing.local.xcconfig
+.icon-previews/

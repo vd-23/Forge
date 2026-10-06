@@ -37,6 +37,13 @@ targets:
     platform: iOS
     sources:
       - path: Forge
+        excludes:
+          - "Resources/AppIcon.icon/**"
+      # An Icon Composer document: one file to Xcode, which renders the
+      # Liquid Glass layers itself.
+      - path: Forge/Resources/AppIcon.icon
+        type: file
+        buildPhase: resources
     dependencies:
       - package: ForgeCore
       - target: ForgeWidgets
