@@ -16,14 +16,18 @@ packages:
   ForgeCore:
     path: Packages/ForgeCore
 
+# The team ID lives in Config/Signing.local.xcconfig (see Config/Signing.xcconfig).
+# A free personal team works: profiles expire after 7 days, and entitlements
+# that need the paid programme (App Groups, push) can't be provisioned.
+configFiles:
+  Debug: Config/Signing.xcconfig
+  Release: Config/Signing.xcconfig
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     CODE_SIGN_STYLE: Automatic
-    # Free personal team: profiles expire after 7 days, and no entitlement that
-    # needs the paid programme (App Groups, push) can be provisioned.
-    DEVELOPMENT_TEAM: YLDXG3RWUU
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 
