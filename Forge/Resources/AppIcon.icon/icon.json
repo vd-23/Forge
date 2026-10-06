@@ -1,0 +1,194 @@
+{
+  "groups": [
+    {
+      "layers": [
+        {
+          "glass": true,
+          "image-name": "headband.svg",
+          "name": "headband",
+          "position": {
+            "scale": 1.15,
+            "translation-in-points": [
+              0,
+              8
+            ]
+          },
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "display-p3:1.00000,0.31000,0.27000,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "display-p3:1.00000,0.31000,0.27000,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.25
+      },
+      "specular": true,
+      "blur-material": 0.4,
+      "lighting": "individual"
+    },
+    {
+      "layers": [
+        {
+          "glass": true,
+          "image-name": "figure.svg",
+          "name": "figure",
+          "position": {
+            "scale": 1.15,
+            "translation-in-points": [
+              0,
+              8
+            ]
+          },
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "display-p3:1.00000,1.00000,1.00000,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "display-p3:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.6
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.45
+      },
+      "specular": true,
+      "blur-material": 0.4,
+      "lighting": "individual"
+    },
+    {
+      "layers": [
+        {
+          "glass": true,
+          "image-name": "barbell.svg",
+          "name": "barbell",
+          "position": {
+            "scale": 1.15,
+            "translation-in-points": [
+              0,
+              8
+            ]
+          },
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "display-p3:0.10000,0.13000,0.21000,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "display-p3:0.25000,0.55000,1.00000,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.6
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.2
+      },
+      "specular": true,
+      "blur-material": 0.4,
+      "lighting": "individual"
+    },
+    {
+      "layers": [
+        {
+          "glass": false,
+          "image-name": "grid.svg",
+          "name": "grid",
+          "position": {
+            "scale": 1.15,
+            "translation-in-points": [
+              0,
+              8
+            ]
+          },
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "display-p3:1.00000,1.00000,1.00000,0.16000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "display-p3:0.35000,0.55000,1.00000,0.14000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      },
+      "hidden-specializations": [
+        {
+          "value": false
+        },
+        {
+          "appearance": "tinted",
+          "value": true
+        }
+      ]
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "iOS"
+    ]
+  },
+  "fill-specializations": [
+    {
+      "value": {
+        "linear-gradient": [
+          "display-p3:0.36000,0.64000,1.00000,1.00000",
+          "display-p3:0.04000,0.25000,0.72000,1.00000"
+        ]
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "linear-gradient": [
+          "display-p3:0.10000,0.20000,0.42000,1.00000",
+          "display-p3:0.02000,0.05000,0.14000,1.00000"
+        ]
+      }
+    }
+  ]
+}
