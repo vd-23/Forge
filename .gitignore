@@ -37,3 +37,6 @@ Package.resolved
 # Secrets / local config
 *.xcconfig.local
 Secrets.plist
+
+# Local signing team
+Config/Signing.local.xcconfig

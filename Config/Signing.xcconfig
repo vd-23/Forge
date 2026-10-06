@@ -1,0 +1,8 @@
+// Code signing. Put your Apple Developer team ID in Config/Signing.local.xcconfig
+// (not committed):
+//
+//     DEVELOPMENT_TEAM = ABCDE12345
+//
+// Any Apple ID works — a free personal team included. Find the ID in Xcode under
+// Settings → Accounts, or leave the file out and pick a team in Xcode.
+#include? "Signing.local.xcconfig"

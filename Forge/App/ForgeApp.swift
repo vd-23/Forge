@@ -19,7 +19,17 @@ struct ForgeApp: App {
         WindowGroup {
             RootView()
                 .environment(workoutController)
-                .task { PersistenceController.seedIfEmpty(container.mainContext) }
+                .task {
+                    PersistenceController.seedIfEmpty(container.mainContext)
+                    #if DEBUG
+                    // Screenshots: `-demoBackupPath <file>` loads a backup made by
+                    // scripts/make-demo-backup.py in place of whatever is there.
+                    if let path = UserDefaults.standard.string(forKey: "demoBackupPath"),
+                       let data = FileManager.default.contents(atPath: path) {
+                        _ = try? BackupCoder.restore(data, into: container.mainContext)
+                    }
+                    #endif
+                }
         }
         .modelContainer(container)
     }
