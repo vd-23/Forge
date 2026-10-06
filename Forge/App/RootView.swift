@@ -36,6 +36,7 @@ struct RootView: View {
             RestTimerBar(timer: controller.restTimer, onTap: openActiveWorkout)
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
+            if phase == .background { AutoBackup.shared.runQuietly(context: context) }
             guard phase == .active else { return }
             // The countdown only ticks while the bar is on screen; catch an
             // expiry that happened in the background before the bar reappears.

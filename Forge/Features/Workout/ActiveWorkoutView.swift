@@ -6,6 +6,7 @@ import SwiftData
 /// `WorkoutController` and resumed from the routine list.
 struct ActiveWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     let session: WorkoutSession
     let controller: WorkoutController
@@ -259,6 +260,7 @@ struct ActiveWorkoutView: View {
         let diff = RoutineSync.diff(plan: plan, against: session.sourceRoutine)
         if let finished = controller.finish(session) {
             Haptics.success()
+            AutoBackup.shared.runQuietly(context: modelContext)
             routinePlan = plan
             routineDiff = diff
             summary = finished

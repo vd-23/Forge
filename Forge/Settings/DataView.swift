@@ -10,12 +10,15 @@ struct DataView: View {
 
     @State private var exportURL: URL?
     @State private var importing = false
+    @State private var choosingFolder = false
     @State private var pendingImport: URL?
     @State private var result: String?
     @State private var error: String?
 
     var body: some View {
         Form {
+            AutoBackupSection { choosingFolder = true }
+
             Section {
                 Button("Export backup", systemImage: "square.and.arrow.up", action: export)
                 if let exportURL {
@@ -43,8 +46,13 @@ struct DataView: View {
         .forgeForm()
         .navigationTitle("Data")
         .navigationBarTitleDisplayMode(.inline)
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.json, .forgeBackup]) { outcome in
+        .fileImporter(
+            isPresented: Binding(get: { importing || choosingFolder }, set: { if !$0 { importing = false; choosingFolder = false } }),
+            allowedContentTypes: choosingFolder ? [.folder] : [.json, .forgeBackup]
+        ) { outcome in
+            let forFolder = choosingFolder
             switch outcome {
+            case let .success(url) where forFolder: useBackupFolder(url)
             case let .success(url): pendingImport = url
             case let .failure(err): error = err.localizedDescription
             }
@@ -66,6 +74,16 @@ struct DataView: View {
             Button("OK") { error = nil }
         } message: {
             Text(error ?? "")
+        }
+    }
+
+    private func useBackupFolder(_ url: URL) {
+        do {
+            try AutoBackup.shared.setFolder(url)
+            AutoBackup.shared.runQuietly(context: context)
+            Haptics.success()
+        } catch {
+            self.error = error.localizedDescription
         }
     }
 

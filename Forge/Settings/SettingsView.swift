@@ -28,6 +28,11 @@ struct SettingsView: View {
                 Section {
                     NavigationLink("Body parts") { BodyPartsView() }
                     NavigationLink("Backup and restore") { DataView() }
+                    if !AutoBackup.shared.isOn {
+                        Label("Automatic backup is off — your data lives only in the app.", systemImage: "exclamationmark.triangle")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
                 } header: {
                     SectionLabel("Library and data").textCase(nil)
                 }
@@ -42,7 +47,7 @@ struct SettingsView: View {
                 } header: {
                     SectionLabel("About").textCase(nil)
                 } footer: {
-                    Text("Free personal signing: don't delete the app. Re-run from Xcode (⌘R) when it stops launching.")
+                    Text("Free personal signing: never delete the app — that deletes its data. Re-install from Xcode when it stops launching.")
                         .font(.footnote)
                         .foregroundStyle(ForgeColor.ink3)
                 }
